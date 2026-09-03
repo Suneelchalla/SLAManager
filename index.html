@@ -45,7 +45,7 @@ window.addEventListener('DOMContentLoaded',function(){
 // ═══════════════════════════════════════════════════════════
 //  CONFIGURATION — Paste your Apps Script Web App URL below
 // ═══════════════════════════════════════════════════════════
-var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxkyfBoeoMucmQCP4lebVSxaTkvqCGqaINDS8fKfxx9Tazn5hEaE8mISYuJhWZHonm4/exec';  // ← PASTE YOUR URL HERE
+var APPS_SCRIPT_URL = '';  // ← PASTE YOUR URL HERE
 // e.g. 'https://script.google.com/macros/s/AKfycbx.../exec'
 // ═══════════════════════════════════════════════════════════
 
@@ -411,6 +411,7 @@ function TkDetail({ticket:tk,statuses,teams,severities:svs,modules,workflows:wfs
     </div>
     {owBD.length>0&&<Card style={{marginBottom:20}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700}}>Time per Owner (SLA counted)</h3>{owBD.map(o=><div key={o.owner} style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}><span style={{minWidth:110,fontSize:12,fontWeight:600}}>{o.owner}</span><div style={{flex:1,height:18,background:"#f1f5f9",borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",borderRadius:4,background:"#4f46e5",width:`${o.pct}%`,display:"flex",alignItems:"center",paddingLeft:6,fontSize:10,color:"#fff",fontWeight:700,minWidth:"fit-content"}}>{fDur(o.mins)} ({o.pct}%)</div></div></div>)}</Card>}
     {tk.escalationHistory?.length>0&&<Card style={{marginBottom:20,borderLeft:"3px solid #f59e0b"}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700,color:"#92400e",display:"flex",alignItems:"center",gap:6}}><Flag size={15}/>Escalation History</h3>{tk.escalationHistory.map((eh,i)=><div key={i} style={{fontSize:12,padding:"6px 0",borderBottom:i<tk.escalationHistory.length-1?"1px solid #fef3c7":"none"}}><b style={{textTransform:"capitalize"}}>{eh.action}</b> at {fDT(eh.timestamp)}{eh.reason&&<div style={{color:"#64748b",marginTop:2,fontStyle:"italic"}}>Reason: {eh.reason}</div>}</div>)}</Card>}
+    <RemarksSection ticket={tk} onUpdate={onUpdate}/>
     <Card><h3 style={{margin:"0 0 14px",fontSize:14,fontWeight:700}}>Status Timeline</h3><div style={{position:"relative",paddingLeft:22}}><div style={{position:"absolute",left:7,top:4,bottom:4,width:2,background:"#e2e8f0"}}/>{tk.history.map((h,i)=>{const isL=i===tk.history.length-1;const hp=h.side==="client"||h.statusName==="Closed";const dur=i<tk.history.length-1?getBizMin(h.timestamp,tk.history[i+1].timestamp,cfg,hs):(!tk.closedAt?getBizMin(h.timestamp,new Date().toISOString(),cfg,hs):0);return <div key={h.id} style={{position:"relative",paddingBottom:isL?0:18}}><div style={{position:"absolute",left:-18,top:3,width:12,height:12,borderRadius:6,background:hp?"#8b5cf6":(SC[h.side]||"#94a3b8"),border:"2px solid #fff",boxShadow:`0 0 0 2px ${hp?"#8b5cf644":(SC[h.side]||"#94a3b8")+"44"}`}}/><div style={{display:"flex",alignItems:"flex-start",gap:10,flexWrap:"wrap"}}><div style={{minWidth:150}}><div style={{fontSize:13,fontWeight:700}}>{h.statusName}</div><SBdg side={h.side}/></div><div style={{fontSize:11,color:"#64748b"}}><div>{fDT(h.timestamp)}</div><div>Owner: {h.owner||"—"}</div>{h.note&&<div style={{fontStyle:"italic",marginTop:1}}>{h.note}</div>}</div><div style={{fontSize:11,color:"#94a3b8"}}>Elapsed: <b>{fDur(hEl[i])}</b></div>{dur>0&&<div style={{fontSize:11,fontWeight:600,color:hp?"#8b5cf6":"#0f172a"}}>{hp?`⏸ ${fDur(dur)} paused`:`▶ ${fDur(dur)}`}</div>}</div></div>;})}</div></Card>
     <Modal open={showSC} onClose={()=>setShowSC(false)} title="Change Status" wide><SCForm ticket={tk} statuses={statuses} teams={teams} cfg={cfg} hs={hs} sla={sla} onSave={hSCSave} onCancel={()=>setShowSC(false)}/></Modal>
     <Modal open={showEd} onClose={()=>setShowEd(false)} title="Edit Ticket"><EdForm ticket={tk} svs={svs} modules={modules} teams={teams} wfs={wfs} allTix={allTickets} onSave={hEdSave} onCancel={()=>setShowEd(false)}/></Modal>
@@ -418,6 +419,27 @@ function TkDetail({ticket:tk,statuses,teams,severities:svs,modules,workflows:wfs
     <Cfm open={showClose} onClose={()=>setShowClose(false)} title="Close Ticket" message={`Close ${tk.ticketNo}? SLA timer will stop. You can reopen later if needed.`} onConfirm={hClose}/>
     <EscModal open={showEsc} onClose={()=>setShowEsc(false)} isEscalated={tk.isEscalated} onSave={hEscSave}/>
   </div>;
+}
+
+function RemarksSection({ticket:tk,onUpdate}){
+  const[text,setText]=useState("");
+  const remarks=tk.remarks||[];
+  const add=()=>{if(!text.trim())return;onUpdate({...tk,remarks:[...remarks,{id:uid(),text:text.trim(),timestamp:new Date().toISOString()}]});setText("");};
+  const del=(rid)=>onUpdate({...tk,remarks:remarks.filter(r=>r.id!==rid)});
+  return <Card style={{marginBottom:20}}>
+    <h3 style={{margin:"0 0 12px",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",gap:6}}><FileText size={15}/>Remarks ({remarks.length})</h3>
+    <div style={{display:"flex",gap:8,marginBottom:12}}>
+      <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")add();}} placeholder="Add a remark..." style={{flex:1,padding:"8px 12px",borderRadius:7,border:"1px solid #e2e8f0",fontSize:13,outline:"none"}}/>
+      <Btn small onClick={add} disabled={!text.trim()}><Plus size={12}/>Add</Btn>
+    </div>
+    {remarks.length===0?<div style={{fontSize:12,color:"#94a3b8",padding:"8px 0"}}>No remarks yet.</div>:
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>{[...remarks].reverse().map(r=>
+      <div key={r.id} style={{display:"flex",gap:10,padding:"8px 12px",background:"#f8fafc",borderRadius:7,fontSize:13}}>
+        <div style={{flex:1}}><div style={{color:"#0f172a"}}>{r.text}</div><div style={{fontSize:11,color:"#94a3b8",marginTop:3}}>{fDT(r.timestamp)}</div></div>
+        <button onClick={()=>del(r.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#cbd5e1",padding:2,alignSelf:"flex-start"}}><Trash2 size={13}/></button>
+      </div>
+    )}</div>}
+  </Card>;
 }
 
 function EscModal({open,onClose,isEscalated,onSave}){
