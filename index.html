@@ -236,6 +236,8 @@ function App(){
   const[sub,setSub]=useState(null);
   const[selTk,setSelTk]=useState(null);
   const[sideOpen,setSideOpen]=useState(true);
+  const[toast,setToast]=useState(null);
+  const notify=(msg,type)=>{setToast({msg,type:type||"success"});setTimeout(()=>setToast(null),2500);};
   const[cfg,saveCfg,c1]=useStore(SK.config,DEF_CONFIG);
   const[holidays,saveHol,c2]=useStore(SK.holidays,[]);
   const[statuses,saveSts,c3]=useStore(SK.statuses,DEF_ST);
@@ -251,20 +253,20 @@ function App(){
   const alerts=useMemo(()=>active.filter(t=>{const sla=calcSLA(t,cfg,hs);const sv=sevs.find(s=>s.id===t.severity);return bLvl(sla.totalMin,(sv?.resolutionHours||0)*60)==="danger"||bLvl(sla.totalMin,(sv?.resolutionHours||0)*60)==="breached";}),[active,cfg,hs,sevs]);
   const escTix=useMemo(()=>active.filter(t=>t.isEscalated),[active]);
   const nav=(p,s)=>{setPage(p);setSub(s||null);setSelTk(null);};
-  const updTk=u=>saveTix(tickets.map(x=>x.id===u.id?u:x));
-  const delTk=id=>saveTix(tickets.filter(x=>x.id!==id));
+  const updTk=(u,msg)=>{saveTix(tickets.map(x=>x.id===u.id?u:x));if(msg)notify(msg);};
+  const delTk=id=>{saveTix(tickets.filter(x=>x.id!==id));notify("Ticket deleted","info");};
   if(!rdy)return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:"system-ui"}}><div style={{textAlign:"center"}}><RefreshCw size={32} style={{color:"#4f46e5",animation:"spin 1s linear infinite"}}/><p style={{marginTop:12,color:"#64748b"}}>Loading...</p><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div></div>;
   const sW=sideOpen?220:0;
   const ni=[{id:"tickets",icon:Ticket,label:"Active Tickets",count:active.length},{id:"dashboard",icon:LayoutDashboard,label:"Dashboard"},{id:"escalations",icon:Flag,label:"Escalations",count:escTix.length},{id:"report",icon:FileText,label:"SLA Report",count:closed.length},{id:"analytics",icon:TrendingUp,label:"Analytics"},{id:"settings",icon:Settings,label:"Settings"}];
-  const dp={statuses,teams,severities:sevs,modules,workflows:wfs,config:cfg,holidaySet:hs,onUpdate:updTk,onDelete:delTk};
+  const dp={statuses,teams,severities:sevs,modules,workflows:wfs,config:cfg,holidaySet:hs,onUpdate:updTk,onDelete:delTk,notify};
   let content;
   if(selTk){const t=tickets.find(x=>x.id===selTk);content=t?<TkDetail ticket={t} {...dp} allTickets={tickets} onBack={()=>setSelTk(null)}/>:<p>Not found</p>;}
   else if(page==="dashboard")content=<Dash tickets={tickets} active={active} closed={closed} sevs={sevs} teams={teams} modules={modules} cfg={cfg} hs={hs} onNav={nav} onSel={setSelTk}/>;
-  else if(page==="tickets")content=<TkList tickets={active} sevs={sevs} teams={teams} modules={modules} wfs={wfs} statuses={statuses} cfg={cfg} hs={hs} onSel={setSelTk} allTix={tickets} onCreate={t=>saveTix([...tickets,t])} onBulk={arr=>saveTix([...tickets,...arr])}/>;
+  else if(page==="tickets")content=<TkList tickets={active} sevs={sevs} teams={teams} modules={modules} wfs={wfs} statuses={statuses} cfg={cfg} hs={hs} onSel={setSelTk} allTix={tickets} onCreate={t=>{saveTix([...tickets,t]);notify("Ticket "+t.ticketNo+" created");}} onBulk={arr=>{saveTix([...tickets,...arr]);notify(arr.length+" tickets imported");}}/>;
   else if(page==="escalations")content=<EscPanel tickets={escTix} sevs={sevs} teams={teams} cfg={cfg} hs={hs} onSel={setSelTk}/>;
-  else if(page==="report")content=<Report tickets={closed} sevs={sevs} teams={teams} modules={modules} wfs={wfs} cfg={cfg} hs={hs} onSel={setSelTk}/>;
+  else if(page==="report")content=<Report tickets={closed} sevs={sevs} teams={teams} modules={modules} wfs={wfs} cfg={cfg} hs={hs} onSel={setSelTk} notify={notify}/>;
   else if(page==="analytics")content=<Analytics tickets={tickets} active={active} closed={closed} sevs={sevs} teams={teams} modules={modules} cfg={cfg} hs={hs} sub={sub} setSub={setSub}/>;
-  else if(page==="settings")content=<Sett cfg={cfg} saveCfg={saveCfg} holidays={holidays} saveHol={saveHol} statuses={statuses} saveSts={saveSts} teams={teams} saveTms={saveTms} modules={modules} saveMods={saveMods} sevs={sevs} saveSevs={saveSevs} wfs={wfs} saveWfs={saveWfs} allData={{config:cfg,holidays,statuses,teams,modules,severities:sevs,tickets,workflows:wfs}} onRestore={async d=>{if(d.config)await saveCfg(d.config);if(d.holidays)await saveHol(d.holidays);if(d.statuses)await saveSts(d.statuses);if(d.teams)await saveTms(d.teams);if(d.modules)await saveMods(d.modules);if(d.severities)await saveSevs(d.severities);if(d.tickets)await saveTix(d.tickets);if(d.workflows)await saveWfs(d.workflows);}} sub={sub} setSub={setSub}/>;
+  else if(page==="settings")content=<Sett cfg={cfg} saveCfg={v=>{saveCfg(v);notify("Settings saved");}} holidays={holidays} saveHol={v=>{saveHol(v);notify("Holidays updated");}} statuses={statuses} saveSts={v=>{saveSts(v);notify("Statuses updated");}} teams={teams} saveTms={v=>{saveTms(v);notify("Teams updated");}} modules={modules} saveMods={v=>{saveMods(v);notify("Modules updated");}} sevs={sevs} saveSevs={v=>{saveSevs(v);notify("Severity updated");}} wfs={wfs} saveWfs={v=>{saveWfs(v);notify("Workflows updated");}} allData={{config:cfg,holidays,statuses,teams,modules,severities:sevs,tickets,workflows:wfs}} onRestore={async d=>{if(d.config)await saveCfg(d.config);if(d.holidays)await saveHol(d.holidays);if(d.statuses)await saveSts(d.statuses);if(d.teams)await saveTms(d.teams);if(d.modules)await saveMods(d.modules);if(d.severities)await saveSevs(d.severities);if(d.tickets)await saveTix(d.tickets);if(d.workflows)await saveWfs(d.workflows);notify("Data restored");}} sub={sub} setSub={setSub} notify={notify}/>;
   return <div style={{fontFamily:"'Inter',system-ui,sans-serif",background:"#f4f6fa",minHeight:"100vh"}}>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
     <div style={{width:220,background:"#0f172a",color:"#e2e8f0",display:"flex",flexDirection:"column",height:"100vh",position:"fixed",left:0,top:0,zIndex:200,transform:sideOpen?"translateX(0)":"translateX(-220px)",transition:"transform .2s"}}>
@@ -282,6 +284,7 @@ function App(){
       </div>
       <div style={{padding:"20px 28px"}}>{content}</div>
     </div>
+    {toast&&<div style={{position:"fixed",bottom:24,right:24,zIndex:9999,padding:"12px 20px",borderRadius:10,fontSize:13,fontWeight:600,boxShadow:"0 8px 24px rgba(0,0,0,.15)",display:"flex",alignItems:"center",gap:8,animation:"slideUp .25s ease",background:toast.type==="error"?"#fee2e2":toast.type==="info"?"#e0f2fe":"#dcfce7",color:toast.type==="error"?"#991b1b":toast.type==="info"?"#0c4a6e":"#166534"}}>{toast.type==="error"?<XCircle size={16}/>:toast.type==="info"?<Bell size={16}/>:<CheckCircle size={16}/>}{toast.msg}<style>{`@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style></div>}
   </div>;
 }
 
@@ -382,7 +385,7 @@ function BulkImp({statuses,teams,modules,sevs,wfs,allTix,onImport,onCancel}){
 }
 
 // ─── TICKET DETAIL ─────────────────────────────────────────────
-function TkDetail({ticket:tk,statuses,teams,severities:svs,modules,workflows:wfs,config:cfg,holidaySet:hs,onUpdate,onDelete,allTickets,onBack}){
+function TkDetail({ticket:tk,statuses,teams,severities:svs,modules,workflows:wfs,config:cfg,holidaySet:hs,onUpdate,onDelete,allTickets,onBack,notify}){
   const[showSC,setShowSC]=useState(false);const[showEd,setShowEd]=useState(false);const[showDel,setShowDel]=useState(false);const[showClose,setShowClose]=useState(false);const[showEsc,setShowEsc]=useState(false);
   const[now,setNow]=useState(Date.now());
   useEffect(()=>{if(tk.closedAt)return;const iv=setInterval(()=>setNow(Date.now()),15000);return()=>clearInterval(iv);},[tk.closedAt]);
@@ -391,11 +394,11 @@ function TkDetail({ticket:tk,statuses,teams,severities:svs,modules,workflows:wfs
   const tm=teams.find(t=>t.id===tk.currentTeam),mod=modules.find(m=>m.id===tk.module),wf=wfs.find(w=>w.id===tk.workflow);
   const lH=tk.history?.[tk.history.length-1],cSt=statuses.find(s=>s.id===lH?.statusId),pct=tg>0?Math.min((sla.totalMin/tg)*100,100):0;
   const ageDays=Math.floor((new Date()-new Date(tk.createdAt))/864e5);
-  const hEscSave=(reason)=>{const n=new Date().toISOString();onUpdate({...tk,isEscalated:!tk.isEscalated,escalationHistory:[...(tk.escalationHistory||[]),{action:tk.isEscalated?"de-escalated":"escalated",timestamp:n,reason:reason||""}]});setShowEsc(false);};
-  const hClose=()=>{const cls=statuses.find(s=>s.name==="Closed"&&s.workflows?.includes(tk.workflow)),n=new Date().toISOString();onUpdate({...tk,closedAt:n,resolvedAt:tk.resolvedAt||n,history:[...tk.history,{id:uid(),statusId:cls?.id||"",statusName:"Closed",side:"svm",owner:tk.currentOwner,team:tk.currentTeam,timestamp:n,note:"Ticket closed"}]});setShowClose(false);};
-  const hReopen=()=>{const rSt=statuses.find(s=>s.name==="Re-Open Review"&&s.workflows?.includes(tk.workflow))||statuses.find(s=>s.name==="Open"&&s.workflows?.includes(tk.workflow)),n=new Date().toISOString();onUpdate({...tk,closedAt:null,resolvedAt:null,history:[...tk.history,{id:uid(),statusId:rSt?.id||"",statusName:rSt?.name||"Re-Opened",side:"svm",owner:tk.currentOwner,team:tk.currentTeam,timestamp:n,note:"Reopened — timer resumed"}]});};
-  const hSCSave=entry=>{const st=statuses.find(s=>s.id===entry.statusId);const isRes=st?.name?.toLowerCase().includes("resolved")||st?.name?.toLowerCase().includes("delivered")||st?.name?.toLowerCase().includes("completed");onUpdate({...tk,currentOwner:entry.owner||tk.currentOwner,currentTeam:entry.team||tk.currentTeam,resolvedAt:isRes?entry.timestamp:tk.resolvedAt,history:[...tk.history,entry]});setShowSC(false);};
-  const hEdSave=u=>{onUpdate({...tk,...u});setShowEd(false);};
+  const hEscSave=(reason)=>{const n=new Date().toISOString();onUpdate({...tk,isEscalated:!tk.isEscalated,escalationHistory:[...(tk.escalationHistory||[]),{action:tk.isEscalated?"de-escalated":"escalated",timestamp:n,reason:reason||""}]},tk.isEscalated?"Ticket de-escalated":"Ticket escalated");setShowEsc(false);};
+  const hClose=()=>{const cls=statuses.find(s=>s.name==="Closed"&&s.workflows?.includes(tk.workflow)),n=new Date().toISOString();onUpdate({...tk,closedAt:n,resolvedAt:tk.resolvedAt||n,history:[...tk.history,{id:uid(),statusId:cls?.id||"",statusName:"Closed",side:"svm",owner:tk.currentOwner,team:tk.currentTeam,timestamp:n,note:"Ticket closed"}]},"Ticket closed");setShowClose(false);};
+  const hReopen=()=>{const rSt=statuses.find(s=>s.name==="Re-Open Review"&&s.workflows?.includes(tk.workflow))||statuses.find(s=>s.name==="Open"&&s.workflows?.includes(tk.workflow)),n=new Date().toISOString();onUpdate({...tk,closedAt:null,resolvedAt:null,history:[...tk.history,{id:uid(),statusId:rSt?.id||"",statusName:rSt?.name||"Re-Opened",side:"svm",owner:tk.currentOwner,team:tk.currentTeam,timestamp:n,note:"Reopened — timer resumed"}]},"Ticket reopened");};
+  const hSCSave=entry=>{const st=statuses.find(s=>s.id===entry.statusId);const isRes=st?.name?.toLowerCase().includes("resolved")||st?.name?.toLowerCase().includes("delivered")||st?.name?.toLowerCase().includes("completed");onUpdate({...tk,currentOwner:entry.owner||tk.currentOwner,currentTeam:entry.team||tk.currentTeam,resolvedAt:isRes?entry.timestamp:tk.resolvedAt,history:[...tk.history,entry]},"Status → "+entry.statusName);setShowSC(false);};
+  const hEdSave=u=>{onUpdate({...tk,...u},"Ticket updated");setShowEd(false);};
   const owBD=useMemo(()=>Object.entries(sla.perOwner).sort((a,b)=>b[1]-a[1]).map(([o,m])=>({owner:o,mins:m,pct:sla.totalMin>0?Math.round((m/sla.totalMin)*100):0})),[sla]);
   const hEl=useMemo(()=>{const a=[];let r=0;for(let i=0;i<tk.history.length;i++){if(i>0){const p=tk.history[i-1];const paused=p.side==="client"||p.statusName==="Closed";if(!paused)r+=getBizMin(p.timestamp,tk.history[i].timestamp,cfg,hs);}a.push(r);}return a;},[tk.history,cfg,hs]);
   return <div>
@@ -411,7 +414,7 @@ function TkDetail({ticket:tk,statuses,teams,severities:svs,modules,workflows:wfs
     </div>
     {owBD.length>0&&<Card style={{marginBottom:20}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700}}>Time per Owner (SLA counted)</h3>{owBD.map(o=><div key={o.owner} style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}><span style={{minWidth:110,fontSize:12,fontWeight:600}}>{o.owner}</span><div style={{flex:1,height:18,background:"#f1f5f9",borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",borderRadius:4,background:"#4f46e5",width:`${o.pct}%`,display:"flex",alignItems:"center",paddingLeft:6,fontSize:10,color:"#fff",fontWeight:700,minWidth:"fit-content"}}>{fDur(o.mins)} ({o.pct}%)</div></div></div>)}</Card>}
     {tk.escalationHistory?.length>0&&<Card style={{marginBottom:20,borderLeft:"3px solid #f59e0b"}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700,color:"#92400e",display:"flex",alignItems:"center",gap:6}}><Flag size={15}/>Escalation History</h3>{tk.escalationHistory.map((eh,i)=><div key={i} style={{fontSize:12,padding:"6px 0",borderBottom:i<tk.escalationHistory.length-1?"1px solid #fef3c7":"none"}}><b style={{textTransform:"capitalize"}}>{eh.action}</b> at {fDT(eh.timestamp)}{eh.reason&&<div style={{color:"#64748b",marginTop:2,fontStyle:"italic"}}>Reason: {eh.reason}</div>}</div>)}</Card>}
-    <RemarksSection ticket={tk} onUpdate={onUpdate}/>
+    <RemarksSection ticket={tk} onUpdate={onUpdate} notify={notify}/>
     <Card><h3 style={{margin:"0 0 14px",fontSize:14,fontWeight:700}}>Status Timeline</h3><div style={{position:"relative",paddingLeft:22}}><div style={{position:"absolute",left:7,top:4,bottom:4,width:2,background:"#e2e8f0"}}/>{tk.history.map((h,i)=>{const isL=i===tk.history.length-1;const hp=h.side==="client"||h.statusName==="Closed";const dur=i<tk.history.length-1?getBizMin(h.timestamp,tk.history[i+1].timestamp,cfg,hs):(!tk.closedAt?getBizMin(h.timestamp,new Date().toISOString(),cfg,hs):0);return <div key={h.id} style={{position:"relative",paddingBottom:isL?0:18}}><div style={{position:"absolute",left:-18,top:3,width:12,height:12,borderRadius:6,background:hp?"#8b5cf6":(SC[h.side]||"#94a3b8"),border:"2px solid #fff",boxShadow:`0 0 0 2px ${hp?"#8b5cf644":(SC[h.side]||"#94a3b8")+"44"}`}}/><div style={{display:"flex",alignItems:"flex-start",gap:10,flexWrap:"wrap"}}><div style={{minWidth:150}}><div style={{fontSize:13,fontWeight:700}}>{h.statusName}</div><SBdg side={h.side}/></div><div style={{fontSize:11,color:"#64748b"}}><div>{fDT(h.timestamp)}</div><div>Owner: {h.owner||"—"}</div>{h.note&&<div style={{fontStyle:"italic",marginTop:1}}>{h.note}</div>}</div><div style={{fontSize:11,color:"#94a3b8"}}>Elapsed: <b>{fDur(hEl[i])}</b></div>{dur>0&&<div style={{fontSize:11,fontWeight:600,color:hp?"#8b5cf6":"#0f172a"}}>{hp?`⏸ ${fDur(dur)} paused`:`▶ ${fDur(dur)}`}</div>}</div></div>;})}</div></Card>
     <Modal open={showSC} onClose={()=>setShowSC(false)} title="Change Status" wide><SCForm ticket={tk} statuses={statuses} teams={teams} cfg={cfg} hs={hs} sla={sla} onSave={hSCSave} onCancel={()=>setShowSC(false)}/></Modal>
     <Modal open={showEd} onClose={()=>setShowEd(false)} title="Edit Ticket"><EdForm ticket={tk} svs={svs} modules={modules} teams={teams} wfs={wfs} allTix={allTickets} onSave={hEdSave} onCancel={()=>setShowEd(false)}/></Modal>
@@ -421,11 +424,11 @@ function TkDetail({ticket:tk,statuses,teams,severities:svs,modules,workflows:wfs
   </div>;
 }
 
-function RemarksSection({ticket:tk,onUpdate}){
+function RemarksSection({ticket:tk,onUpdate,notify}){
   const[text,setText]=useState("");
   const remarks=tk.remarks||[];
-  const add=()=>{if(!text.trim())return;onUpdate({...tk,remarks:[...remarks,{id:uid(),text:text.trim(),timestamp:new Date().toISOString()}]});setText("");};
-  const del=(rid)=>onUpdate({...tk,remarks:remarks.filter(r=>r.id!==rid)});
+  const add=()=>{if(!text.trim())return;onUpdate({...tk,remarks:[...remarks,{id:uid(),text:text.trim(),timestamp:new Date().toISOString()}]},"Remark added");setText("");};
+  const del=(rid)=>onUpdate({...tk,remarks:remarks.filter(r=>r.id!==rid)},"Remark removed");
   return <Card style={{marginBottom:20}}>
     <h3 style={{margin:"0 0 12px",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",gap:6}}><FileText size={15}/>Remarks ({remarks.length})</h3>
     <div style={{display:"flex",gap:8,marginBottom:12}}>
@@ -497,14 +500,14 @@ function EscPanel({tickets,sevs,teams,cfg,hs,onSel}){
 }
 
 // ─── SLA REPORT ────────────────────────────────────────────────
-function Report({tickets,sevs,teams,modules,wfs,cfg,hs,onSel}){
+function Report({tickets,sevs,teams,modules,wfs,cfg,hs,onSel,notify}){
   const[fS,setFS]=useState("");const[fB,setFB]=useState("");const[dF,setDF]=useState("");const[dT,setDT]=useState("");
   const[search,setSearch]=useState("");const[pg,setPg]=useState(1);const[sort,setSort]=useState({key:"closed",dir:"desc"});
   const enr=useMemo(()=>tickets.map(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg,ov=br?sla.totalMin-tg:0,lv=bLvl(sla.totalMin,tg);const mO=Object.entries(sla.perOwner).sort((a,b)=>b[1]-a[1])[0];const mS=Object.entries(sla.perSide).filter(([s])=>s!=="client").sort((a,b)=>b[1]-a[1])[0];return{...t,sla,sv,tg,br,ov,lv,mO,mS};}),[tickets,sevs,cfg,hs]);
   const filt=useMemo(()=>enr.filter(t=>{if(search&&!t.ticketNo.toLowerCase().includes(search.toLowerCase())&&!t.title.toLowerCase().includes(search.toLowerCase()))return false;if(fS&&t.severity!==fS)return false;if(fB==="breached"&&!t.br)return false;if(fB==="met"&&t.br)return false;if(dF&&t.closedAt<dF)return false;if(dT&&t.closedAt>dT+"T23:59:59")return false;return true;}),[enr,fS,fB,dF,dT,search]);
   const srt=useMemo(()=>[...filt].sort((a,b)=>{const d=sort.dir==="asc"?1:-1;if(sort.key==="ticket")return a.ticketNo.localeCompare(b.ticketNo)*d;if(sort.key==="severity")return((a.sv?.resolutionHours||999)-(b.sv?.resolutionHours||999))*d;if(sort.key==="elapsed")return(a.sla.totalMin-b.sla.totalMin)*d;if(sort.key==="target")return(a.tg-b.tg)*d;if(sort.key==="over")return(a.ov-b.ov)*d;if(sort.key==="closed")return((new Date(a.closedAt||0))-(new Date(b.closedAt||0)))*d;if(sort.key==="owner")return(a.currentOwner||"").localeCompare(b.currentOwner||"")*d;return 0;}),[filt,sort]);
   const pgd=srt.slice((pg-1)*PGS,pg*PGS);useEffect(()=>setPg(1),[search,fS,fB,dF,dT,sort]);const bC=filt.filter(t=>t.br).length;
-  const hExp=()=>{const rows=srt.map(t=>{const tm=teams.find(x=>x.id===t.currentTeam),md=modules.find(x=>x.id===t.module),wf=wfs.find(x=>x.id===t.workflow);const reopens=t.history?t.history.filter(h=>h.statusName?.includes("Re-Open")||h.note?.includes("Reopened")).length:0;return{"Ticket No":t.ticketNo,Title:t.title,Severity:t.sv?.name||"",Workflow:wf?.name||"",Module:md?.name||"",Team:tm?.name||"",Owner:t.currentOwner,Escalated:t.isEscalated?"Yes":"No",Reopens:reopens,Created:fDT(t.createdAt),Closed:fDT(t.closedAt),"SLA Target hrs":t.sv?.resolutionHours||"","Elapsed hrs":+(t.sla.totalMin/60).toFixed(2),"SVM hrs":+(t.sla.svmMin/60).toFixed(2),"Engg hrs":+(t.sla.engMin/60).toFixed(2),"Client hrs":+(t.sla.clientMin/60).toFixed(2),Breached:t.br?"Yes":"No","Overdue hrs":t.br?+(t.ov/60).toFixed(2):"","Top Holder":t.mO?`${t.mO[0]} (${fDur(t.mO[1])})`:"","Breach Side":t.br?(t.mS?t.mS[0]:""):"N/A"};});const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"SLA Report");ws["!cols"]=Object.keys(rows[0]||{}).map(k=>({wch:Math.max(k.length,14)}));XLSX.writeFile(wb,`SLA_Report_${dYMD(new Date())}.xlsx`);};
+  const hExp=()=>{const rows=srt.map(t=>{const tm=teams.find(x=>x.id===t.currentTeam),md=modules.find(x=>x.id===t.module),wf=wfs.find(x=>x.id===t.workflow);const reopens=t.history?t.history.filter(h=>h.statusName?.includes("Re-Open")||h.note?.includes("Reopened")).length:0;return{"Ticket No":t.ticketNo,Title:t.title,Severity:t.sv?.name||"",Workflow:wf?.name||"",Module:md?.name||"",Team:tm?.name||"",Owner:t.currentOwner,Escalated:t.isEscalated?"Yes":"No",Reopens:reopens,Created:fDT(t.createdAt),Closed:fDT(t.closedAt),"SLA Target hrs":t.sv?.resolutionHours||"","Elapsed hrs":+(t.sla.totalMin/60).toFixed(2),"SVM hrs":+(t.sla.svmMin/60).toFixed(2),"Engg hrs":+(t.sla.engMin/60).toFixed(2),"Client hrs":+(t.sla.clientMin/60).toFixed(2),Breached:t.br?"Yes":"No","Overdue hrs":t.br?+(t.ov/60).toFixed(2):"","Top Holder":t.mO?`${t.mO[0]} (${fDur(t.mO[1])})`:"","Breach Side":t.br?(t.mS?t.mS[0]:""):"N/A"};});const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"SLA Report");ws["!cols"]=Object.keys(rows[0]||{}).map(k=>({wch:Math.max(k.length,14)}));XLSX.writeFile(wb,`SLA_Report_${dYMD(new Date())}.xlsx`);if(notify)notify("Excel exported");};
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
       <div><h1 style={{fontSize:22,fontWeight:800,margin:0}}>SLA Report</h1><p style={{color:"#64748b",fontSize:13,margin:"3px 0 0"}}>{filt.length} closed · {bC} breached</p></div>
