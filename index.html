@@ -650,21 +650,58 @@ function ListS({items,save,label}){
 }
 
 function StsS({statuses,saveSts,wfs}){
-  const[show,setShow]=useState(false);const[eId,setEId]=useState(null);const[fW,setFW]=useState("");const[fSd,setFSd]=useState("");
+  const[show,setShow]=useState(false);const[eId,setEId]=useState(null);const[showBulk,setShowBulk]=useState(false);const[fW,setFW]=useState("");const[fSd,setFSd]=useState("");
   const filt=statuses.filter(s=>{if(fW&&!s.workflows?.includes(fW))return false;if(fSd&&s.side!==fSd)return false;return true;});
   const grp={svm:[],client:[],engineering:[]};filt.forEach(s=>{if(grp[s.side])grp[s.side].push(s);});
   const saveSt=u=>{if(eId)saveSts(statuses.map(s=>s.id===eId?u:s));else saveSts([...statuses,{...u,id:uid()}]);setShow(false);setEId(null);};
+  const bulkAdd=arr=>{saveSts([...statuses,...arr.map(s=>({...s,id:uid()}))]);setShowBulk(false);};
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Sel value={fW} onChange={e=>setFW(e.target.value)} options={[{value:"",label:"All Workflows"},...wfs.map(w=>({value:w.id,label:w.name}))]}/>
       <Sel value={fSd} onChange={e=>setFSd(e.target.value)} options={[{value:"",label:"All Sides"},{value:"svm",label:"SVM"},{value:"client",label:"Client"},{value:"engineering",label:"Engineering"}]}/></div>
-      <Btn onClick={()=>{setEId(null);setShow(true);}}><Plus size={13}/>Add</Btn>
+      <div style={{display:"flex",gap:6}}><Btn variant="outline" onClick={()=>setShowBulk(true)}><Plus size={13}/>Add from Master List</Btn><Btn onClick={()=>{setEId(null);setShow(true);}}><Plus size={13}/>Custom</Btn></div>
     </div>
     {["svm","client","engineering"].map(side=>grp[side].length>0&&<Card key={side} style={{marginBottom:14}}>
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}><div style={{width:11,height:11,borderRadius:3,background:SC[side]}}/><h3 style={{margin:0,fontSize:14,fontWeight:700}}>{SL[side]} <span style={{fontWeight:400,color:"#94a3b8"}}>({side==="client"?"Paused":"Runs"})</span></h3><Bdg bg={SC[side]+"22"} color={SC[side]}>{grp[side].length}</Bdg></div>
       <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{grp[side].map(s=><div key={s.id} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 9px",background:SC[side]+"0c",border:"1px solid "+SC[side]+"33",borderRadius:5,fontSize:12}}>{s.name}<button onClick={()=>{setEId(s.id);setShow(true);}} style={{background:"none",border:"none",cursor:"pointer",color:"#64748b",padding:1}}><Edit2 size={11}/></button><button onClick={()=>saveSts(statuses.filter(x=>x.id!==s.id))} style={{background:"none",border:"none",cursor:"pointer",color:"#ef4444",padding:1}}><Trash2 size={11}/></button></div>)}</div>
     </Card>)}
-    <Modal open={show} onClose={()=>{setShow(false);setEId(null);}} title={eId?"Edit Status":"Add Status"}><StForm initial={eId?statuses.find(s=>s.id===eId):null} wfs={wfs} onSave={saveSt} onCancel={()=>{setShow(false);setEId(null);}}/></Modal>
+    <Modal open={show} onClose={()=>{setShow(false);setEId(null);}} title={eId?"Edit Status":"Add Custom Status"}><StForm initial={eId?statuses.find(s=>s.id===eId):null} wfs={wfs} onSave={saveSt} onCancel={()=>{setShow(false);setEId(null);}}/></Modal>
+    <Modal open={showBulk} onClose={()=>setShowBulk(false)} title="Add Statuses from Master List" wide><BulkStForm existing={statuses} wfs={wfs} onSave={bulkAdd} onCancel={()=>setShowBulk(false)}/></Modal>
+  </div>;
+}
+
+function BulkStForm({existing,wfs,onSave,onCancel}){
+  const existingNames=new Set(existing.map(s=>s.name.toLowerCase()));
+  const available=DEF_ST.filter(s=>!existingNames.has(s.name.toLowerCase()));
+  const[selected,setSelected]=useState({});
+  const[search,setSearch]=useState("");
+  const toggle=(s)=>setSelected(p=>{const n={...p};if(n[s.name])delete n[s.name];else n[s.name]={name:s.name,side:s.side,workflows:s.workflows};return n;});
+  const setSide=(name,side)=>setSelected(p=>({...p,[name]:{...p[name],side}}));
+  const filtered=available.filter(s=>!search||s.name.toLowerCase().includes(search.toLowerCase()));
+  const selCount=Object.keys(selected).length;
+  const grouped={svm:[],client:[],engineering:[]};filtered.forEach(s=>{const side=selected[s.name]?.side||s.side;if(grouped[side])grouped[side].push(s);});
+  return <div style={{display:"flex",flexDirection:"column",gap:12}}>
+    <div style={{padding:10,background:"#f0f9ff",borderRadius:8,fontSize:12,color:"#1e40af"}}>Select statuses to add. You can change the side (SVM/Client/Engineering) for each before saving. <b>{available.length}</b> statuses available, <b>{selCount}</b> selected.</div>
+    <div style={{position:"relative"}}><Search size={15} style={{position:"absolute",left:10,top:9,color:"#94a3b8"}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search statuses..." style={{width:"100%",padding:"7px 11px 7px 34px",borderRadius:7,border:"1px solid #e2e8f0",fontSize:13,outline:"none",boxSizing:"border-box"}}/></div>
+    {available.length===0?<div style={{textAlign:"center",padding:24,color:"#94a3b8",fontSize:13}}>All master statuses are already added.</div>:
+    <div style={{maxHeight:380,overflow:"auto",border:"1px solid #e2e8f0",borderRadius:8}}>
+      {["svm","client","engineering"].map(side=>grouped[side].length>0&&<div key={side}>
+        <div style={{padding:"8px 12px",background:SC[side]+"11",borderBottom:"1px solid #e2e8f0",display:"flex",alignItems:"center",gap:6,position:"sticky",top:0,zIndex:1}}>
+          <div style={{width:9,height:9,borderRadius:3,background:SC[side]}}/><span style={{fontSize:12,fontWeight:700,color:SC[side]}}>{SL[side]} ({side==="client"?"Paused":"Runs"})</span>
+        </div>
+        {grouped[side].map(s=>{const isSel=!!selected[s.name];return <div key={s.name} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 12px",borderBottom:"1px solid #f1f5f9",background:isSel?"#eef2ff":"#fff",cursor:"pointer"}} onClick={()=>toggle(s)}>
+          <input type="checkbox" checked={isSel} readOnly style={{cursor:"pointer",accentColor:"#4f46e5"}}/>
+          <span style={{flex:1,fontSize:13,fontWeight:isSel?600:400}}>{s.name}</span>
+          {isSel&&<select value={selected[s.name].side} onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();setSide(s.name,e.target.value);}} style={{padding:"3px 6px",borderRadius:5,border:"1px solid #e2e8f0",fontSize:11,background:"#fff"}}>
+            <option value="svm">SVM (Runs)</option><option value="engineering">Engg (Runs)</option><option value="client">Client (Paused)</option>
+          </select>}
+        </div>;})}
+      </div>)}
+    </div>}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+      <span style={{fontSize:12,color:"#64748b"}}>{selCount} selected</span>
+      <div style={{display:"flex",gap:8}}><Btn variant="secondary" onClick={onCancel}>Cancel</Btn><Btn onClick={()=>onSave(Object.values(selected))} disabled={selCount===0}><Save size={13}/>Add {selCount} Status{selCount!==1?"es":""}</Btn></div>
+    </div>
   </div>;
 }
 
