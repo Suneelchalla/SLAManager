@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%234f46e5'/><path d='M16 5c-2.5 1.5-5.5 2.5-8 2.5v9c0 5 3.5 8.5 8 10.5 4.5-2 8-5.5 8-10.5v-9c-2.5 0-5.5-1-8-2.5z' fill='%23818cf8'/><path d='M14 16l2 2 4-4' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 <title>SLA Manager</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
@@ -199,6 +200,7 @@ const DEF_ST=[{id:"s1",name:"Open",side:"svm",workflows:["wf1","wf2","wf3","wf4"
 const SC={svm:"#3b82f6",client:"#8b5cf6",engineering:"#f59e0b"};
 const SL={svm:"SVM",client:"Client",engineering:"Engineering"};
 const BC={safe:"#10b981",warning:"#f59e0b",danger:"#ef4444",breached:"#7f1d1d"};
+const BB={safe:"#10b981",warning:"#f59e0b",danger:"#ef4444",breached:"#dc2626"};
 const PGS=15;
 
 /* ─── UTILITIES ─── */
@@ -343,11 +345,16 @@ function TkList({tickets,sevs,teams,modules,wfs,statuses,cfg,hs,onSel,allTix,onC
       <Sel value={sort.key+"|"+sort.dir} onChange={e=>{const[k,d]=e.target.value.split("|");setSort({key:k,dir:d});}} options={[{value:"urgency|asc",label:"Most Urgent"},{value:"urgency|desc",label:"Least Urgent"},{value:"created|desc",label:"Newest"},{value:"created|asc",label:"Oldest"},{value:"severity|asc",label:"Highest Severity"},{value:"elapsed|desc",label:"Most Elapsed"}]}/>
     </div>
     {pgd.length===0?<Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No active tickets{search?" matching search":""}.</Card>:
-    <div style={{display:"flex",flexDirection:"column",gap:6}}>{pgd.map(t=>{const tm=teams.find(x=>x.id===t.currentTeam);const lH=t.history?.[t.history.length-1];const cSt=statuses.find(s=>s.id===lH?.statusId);
-      return <Card key={t.id} onClick={()=>onSel(t.id)} style={{cursor:"pointer",padding:14,display:"flex",alignItems:"center",gap:14}}>
-        <div style={{minWidth:90}}><div style={{fontWeight:800,fontSize:13}}>{t.ticketNo}</div><Bdg bg={t.sv?.color+"22"} color={t.sv?.color}>{t.sv?.name||"—"}</Bdg></div>
-        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</div><div style={{fontSize:11,color:"#64748b",marginTop:2,display:"flex",gap:10,flexWrap:"wrap"}}><span>Owner: <b>{t.currentOwner||"—"}</b></span><span>Team: <b>{tm?.name||"—"}</b></span>{cSt&&<span>Status: <b>{cSt.name}</b> <SBdg side={lH?.side||"svm"}/></span>}</div></div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>{t.isEscalated&&<Bdg bg="#fef3c7" color="#92400e">Esc</Bdg>}<TTmr ticket={t} severities={sevs} config={cfg} holidaySet={hs}/><ChevronRight size={16} color="#94a3b8"/></div>
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>{pgd.map(t=>{const tm=teams.find(x=>x.id===t.currentTeam);const lH=t.history?.[t.history.length-1];const cSt=statuses.find(s=>s.id===lH?.statusId);const mod=modules.find(m=>m.id===t.module);const wf=wfs.find(w=>w.id===t.workflow);const ageDays=Math.floor((Date.now()-new Date(t.createdAt))/864e5);const pct=t.tg>0?Math.min((t.sla.totalMin/t.tg)*100,100):0;const inCurr=lH?fDur(getBizMin(lH.timestamp,new Date().toISOString(),cfg,hs)):"—";const bb=bBadge(t.lv);
+      return <Card key={t.id} onClick={()=>onSel(t.id)} style={{cursor:"pointer",padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
+        <div style={{minWidth:85}}><div style={{fontWeight:800,fontSize:13,color:"#0f172a"}}>{t.ticketNo}</div><Bdg bg={t.sv?.color+"22"} color={t.sv?.color}>{t.sv?.name||"—"}</Bdg></div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"#0f172a"}}>{t.title}</div><div style={{fontSize:11,color:"#64748b",marginTop:3,display:"flex",gap:8,flexWrap:"wrap"}}><span>Owner: <b>{t.currentOwner||"—"}</b></span><span>Team: <b>{tm?.name||"—"}</b></span>{cSt&&<span>Status: <b>{cSt.name}</b> <SBdg side={lH?.side||"svm"}/></span>}</div></div>
+        <div style={{minWidth:170,display:"flex",flexDirection:"column",gap:4}}>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{mod&&<Bdg bg="#f1f5f9" color="#475569">{mod.name}</Bdg>}{t.isEscalated&&<Bdg bg="#fef3c7" color="#92400e">Esc</Bdg>}</div>
+          <div style={{height:4,background:"#e2e8f0",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",borderRadius:2,width:`${pct}%`,background:BB[t.lv]||"#10b981",transition:"width .3s"}}/></div>
+          <div style={{fontSize:10,color:"#94a3b8",display:"flex",gap:8}}><span>{ageDays}d old</span><span>In status: {inCurr}</span>{(t.remarks?.length>0)&&<span>💬{t.remarks.length}</span>}</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,minWidth:130,justifyContent:"flex-end"}}><TTmr ticket={t} severities={sevs} config={cfg} holidaySet={hs}/><ChevronRight size={16} color="#94a3b8"/></div>
       </Card>;})}</div>}
     <Pgn total={filt.length} page={pg} setPage={setPg}/>
     <Modal open={showC} onClose={()=>setShowC(false)} title="Create New Ticket" wide><CrtForm statuses={statuses} teams={teams} modules={modules} sevs={sevs} wfs={wfs} allTix={allTix} onSave={t=>{onCreate(t);setShowC(false);}} onCancel={()=>setShowC(false)}/></Modal>
