@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SLA Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.9/babel.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/prop-types@15.8.1/prop-types.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/recharts@2.1.16/umd/Recharts.js"></script>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',system-ui,sans-serif;background:#f4f6fa}#load-msg{display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;color:#64748b;flex-direction:column;gap:12px}#load-msg .err{color:#dc2626;max-width:600px;word-break:break-all;font-size:13px}@keyframes spin{to{transform:rotate(360deg)}}</style>
+</head>
+<body>
+<div id="root"><div id="load-msg"><div style="font-size:18px;font-weight:700">SLA Manager</div><div>Loading libraries...</div></div></div>
+<script>
+window.onerror=function(msg,url,line,col,err){
+  var el=document.getElementById('load-msg');
+  if(el)el.innerHTML='<div style="font-size:18px;font-weight:700;color:#dc2626">Error Loading App</div><div class="err">'+msg+'</div><div style="font-size:12px;color:#94a3b8">Line '+line+' — Check browser console (F12) for details</div>';
+  return false;
+};
+</script>
+<script>
+// Check libraries loaded
+window.addEventListener('DOMContentLoaded',function(){
+  var missing=[];
+  if(!window.React)missing.push('React');
+  if(!window.ReactDOM)missing.push('ReactDOM');
+  if(!window.Babel)missing.push('Babel');
+  if(!window.XLSX)missing.push('XLSX');
+  if(!window.Recharts)missing.push('Recharts (charts will be disabled)');
+  if(missing.length>0){
+    var el=document.getElementById('load-msg');
+    if(el&&missing.some(function(m){return m==='React'||m==='ReactDOM'||m==='Babel';})){
+      el.innerHTML='<div style="font-size:18px;font-weight:700;color:#dc2626">Failed to load libraries</div><div class="err">Missing: '+missing.join(', ')+'</div><div style="font-size:12px;color:#94a3b8">Check your internet connection and refresh the page.</div>';
+    }else{
+      console.warn('Optional libraries missing:',missing.join(', '));
+    }
+  }
+});
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIGURATION — Paste your Apps Script Web App URL below
+// ═══════════════════════════════════════════════════════════
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxkyfBoeoMucmQCP4lebVSxaTkvqCGqaINDS8fKfxx9Tazn5hEaE8mISYuJhWZHonm4/exec';  // ← PASTE YOUR URL HERE
+// e.g. 'https://script.google.com/macros/s/AKfycbx.../exec'
+// ═══════════════════════════════════════════════════════════
+
+// Hybrid storage: localStorage for speed + Apps Script for persistence
+window.storage = {
+  get: async function(k) {
+    // Try localStorage first (instant)
+    var v = localStorage.getItem(k);
+    if (v !== null) return { key: k, value: v };
+    // Fall back to Apps Script
+    if (!APPS_SCRIPT_URL) return null;
+    try {
+      var resp = await fetch(APPS_SCRIPT_URL + '?action=get&key=' + encodeURIComponent(k));
+      var data = await resp.json();
+      if (data && data.value) {
+        localStorage.setItem(k, data.value); // cache locally
+        return data;
+      }
+    } catch (e) { console.warn('Apps Script get failed:', e); }
+    return null;
+  },
+  set: async function(k, v) {
+    // Save to localStorage immediately
+    localStorage.setItem(k, v);
+    // Push to Apps Script in background
+    if (APPS_SCRIPT_URL) {
+      try {
+        fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'set', key: k, value: v })
+        }).catch(function(e) { console.warn('Apps Script set failed:', e); });
+      } catch (e) { console.warn('Apps Script set failed:', e); }
+    }
+    return { key: k, value: v };
+  },
+  delete: async function(k) {
+    localStorage.removeItem(k);
+    if (APPS_SCRIPT_URL) {
+      try {
+        fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'delete', key: k })
+        }).catch(function(e) { console.warn('Apps Script delete failed:', e); });
+      } catch (e) {}
+    }
+    return { key: k, deleted: true };
+  },
+  list: async function(p) {
+    var keys = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (!p || k.startsWith(p)) keys.push(k);
+    }
+    return { keys: keys };
+  },
+  // Pull all data from Google Sheets → localStorage
+  syncFromCloud: async function() {
+    if (!APPS_SCRIPT_URL) return { synced: 0 };
+    try {
+      var resp = await fetch(APPS_SCRIPT_URL + '?action=getAll');
+      var data = await resp.json();
+      var count = 0;
+      for (var k in data) {
+        if (data.hasOwnProperty(k)) { localStorage.setItem(k, data[k]); count++; }
+      }
+      return { synced: count };
+    } catch (e) { console.warn('Sync from cloud failed:', e); return { error: e.message }; }
+  },
+  // Push all sla: data from localStorage → Google Sheets
+  syncToCloud: async function() {
+    if (!APPS_SCRIPT_URL) return { saved: 0 };
+    var payload = {};
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k.startsWith('sla:')) payload[k] = localStorage.getItem(k);
+    }
+    try {
+      var resp = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'setAll', data: payload })
+      });
+      return await resp.json();
+    } catch (e) { console.warn('Sync to cloud failed:', e); return { error: e.message }; }
+  }
+};
+</script>
+<script type="text/babel">
+const{useState,useEffect,useCallback,useMemo,useRef}=React;
+const _R=window.Recharts||{};
+const BarChart=_R.BarChart||(()=>null);
+const Bar=_R.Bar||(()=>null);
+const LineChart=_R.LineChart||(()=>null);
+const Line=_R.Line||(()=>null);
+const XAxis=_R.XAxis||(()=>null);
+const YAxis=_R.YAxis||(()=>null);
+const Tooltip=_R.Tooltip||(()=>null);
+const ResponsiveContainer=_R.ResponsiveContainer||(({children,height})=><div style={{width:"100%",height:height||200}}>{children}</div>);
+const PieChart=_R.PieChart||(()=>null);
+const Pie=_R.Pie||(()=>null);
+const Cell=_R.Cell||(()=>null);
+const CartesianGrid=_R.CartesianGrid||(()=>null);
+const Area=_R.Area||(()=>null);
+const AreaChart=_R.AreaChart||(()=>null);
+
+/* ─── ICONS (simplified SVG) ─── */
+const Iv=({children,size:s=18,color:c="currentColor",...p})=><svg xmlns="http://www.w3.org/2000/svg" width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>{children}</svg>;
+const Clock=p=><Iv {...p}><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></Iv>;
+const AlertTriangle=p=><Iv {...p}><path d="m12 2 10 18H2L12 2z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".5" fill="currentColor"/></Iv>;
+const CheckCircle=p=><Iv {...p}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></Iv>;
+const XCircle=p=><Iv {...p}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></Iv>;
+const Settings=p=><Iv {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></Iv>;
+const LayoutDashboard=p=><Iv {...p}><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></Iv>;
+const Ticket=p=><Iv {...p}><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/></Iv>;
+const FileText=p=><Iv {...p}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></Iv>;
+const Plus=p=><Iv {...p}><path d="M12 5v14"/><path d="M5 12h14"/></Iv>;
+const Trash2=p=><Iv {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></Iv>;
+const Edit2=p=><Iv {...p}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></Iv>;
+const Save=p=><Iv {...p}><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></Iv>;
+const ChevronRight=p=><Iv {...p}><path d="m9 18 6-6-6-6"/></Iv>;
+const ArrowLeft=p=><Iv {...p}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></Iv>;
+const Download=p=><Iv {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Iv>;
+const Upload=p=><Iv {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></Iv>;
+const Flag=p=><Iv {...p}><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></Iv>;
+const Users=p=><Iv {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Iv>;
+const Calendar=p=><Iv {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></Iv>;
+const Shield=p=><Iv {...p}><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></Iv>;
+const TrendingUp=p=><Iv {...p}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></Iv>;
+const Search=p=><Iv {...p}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></Iv>;
+const RefreshCw=p=><Iv {...p}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></Iv>;
+const X_=p=><Iv {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></Iv>;
+const BarChart3=p=><Iv {...p}><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16h8"/><path d="M7 11h12"/><path d="M7 6h3"/></Iv>;
+const Menu=p=><Iv {...p}><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></Iv>;
+const Database=p=><Iv {...p}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></Iv>;
+const ArrowUpDown=p=><Iv {...p}><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></Iv>;
+const ArrowUp=p=><Iv {...p}><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></Iv>;
+const ArrowDown=p=><Iv {...p}><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></Iv>;
+const RotateCcw=p=><Iv {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></Iv>;
+const Bell=p=><Iv {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></Iv>;
+
+/* ─── CONSTANTS ─── */
+const SK={config:"sla:config",holidays:"sla:holidays",statuses:"sla:statuses",teams:"sla:teams",modules:"sla:modules",severities:"sla:severities",tickets:"sla:tickets",workflows:"sla:workflows"};
+const DEF_CONFIG={businessStart:"00:00",businessEnd:"23:59",workDays:[1,2,3,4,5]};
+const DEF_SEVS=[{id:"sev1",name:"Showstopper",resolutionHours:4,color:"#dc2626"},{id:"sev2",name:"Critical",resolutionHours:48,color:"#ea580c"},{id:"sev3",name:"High",resolutionHours:32,color:"#d97706"},{id:"sev4",name:"Medium",resolutionHours:48,color:"#2563eb"},{id:"sev5",name:"Low",resolutionHours:90,color:"#6b7280"}];
+const DEF_WF=[{id:"wf1",name:"Incident (SWIRE)"},{id:"wf2",name:"Service Request (Phoenix)"},{id:"wf3",name:"SW Incident"},{id:"wf4",name:"SW Service Request"}];
+const DEF_MODS=["Commercial","Container Maintenance & Repair","Cost","Electronic Data Interface","Equipment Management System","Export Documentation & Invoice","Finance","Import Documentation & Invoice","Import Receipt & FPA Reports","Non-Functional Requirements","Operations","Vessel Schedule System"].map((n,i)=>({id:`mod${i+1}`,name:n}));
+const DEF_TEAMS=[{id:"t1",name:"SVM Support"},{id:"t2",name:"SVM Engineering"},{id:"t3",name:"DB Admin"},{id:"t4",name:"Client"},{id:"t5",name:"QA"}];
+const DEF_ST=[{id:"s1",name:"Open",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s2",name:"Acknowledged",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s3",name:"Analysis & Study",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s4",name:"Technical Analysis",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s5",name:"On-Hold",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s6",name:"Waiting for Customer",side:"client",workflows:["wf1","wf2","wf3","wf4"]},{id:"s7",name:"Assign HD (WFC)",side:"client",workflows:["wf1","wf2"]},{id:"s8",name:"Development in Progress",side:"engineering",workflows:["wf1","wf3"]},{id:"s9",name:"Testing in Progress",side:"engineering",workflows:["wf1","wf3"]},{id:"s10",name:"Release Kit Prep",side:"engineering",workflows:["wf1","wf3"]},{id:"s11",name:"Workaround Fix",side:"svm",workflows:["wf1","wf3"]},{id:"s12",name:"Impact Study",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s13",name:"Project Lead Approval",side:"svm",workflows:["wf1","wf3"]},{id:"s14",name:"DB Admin Approval",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s15",name:"Release Kit Preparation",side:"svm",workflows:["wf1","wf3"]},{id:"s16",name:"Client Release Approval",side:"client",workflows:["wf1","wf3"]},{id:"s17",name:"SVM DB Script Release In-Progress",side:"svm",workflows:["wf1","wf3"]},{id:"s18",name:"Inform to Client",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s19",name:"Release Move to Production",side:"svm",workflows:["wf1","wf3"]},{id:"s20",name:"Delivered",side:"svm",workflows:["wf1","wf3"]},{id:"s21",name:"Closed",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s22",name:"Re-Open Review",side:"svm",workflows:["wf1","wf3"]},{id:"s23",name:"Resolved",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s24",name:"Resolved with Clarification",side:"svm",workflows:["wf1","wf3"]},{id:"s25",name:"Clarify",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s26",name:"System Defect",side:"engineering",workflows:["wf1","wf3"]},{id:"s27",name:"Share Findings",side:"svm",workflows:["wf1","wf3"]},{id:"s28",name:"Published",side:"svm",workflows:["wf1","wf3"]},{id:"s29",name:"Release Plan UAT or Hot Fix",side:"engineering",workflows:["wf1","wf3"]},{id:"s30",name:"SVM Hotfix Testing",side:"engineering",workflows:["wf1","wf3"]},{id:"s31",name:"Assign HD (UAT)",side:"svm",workflows:["wf1","wf3"]},{id:"s32",name:"Client Hotfix Testing",side:"client",workflows:["wf1","wf3"]},{id:"s33",name:"POC Release Approval",side:"svm",workflows:["wf1","wf3"]},{id:"s34",name:"Release Plan Production",side:"svm",workflows:["wf1","wf3"]},{id:"s35",name:"Client Approval Prod",side:"client",workflows:["wf1","wf3"]},{id:"s36",name:"Client Release Approval Prod",side:"client",workflows:["wf1","wf3"]},{id:"s37",name:"Assign to SVM Deployment Team",side:"svm",workflows:["wf1","wf3"]},{id:"s38",name:"Inform Client",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s39",name:"DB Script Request",side:"svm",workflows:["wf2","wf4"]},{id:"s40",name:"Doubt Clarification",side:"svm",workflows:["wf2","wf4"]},{id:"s41",name:"Team Lead Review & Approval",side:"svm",workflows:["wf2","wf4"]},{id:"s42",name:"Release Plan",side:"svm",workflows:["wf2","wf4"]},{id:"s43",name:"Client Approval DB Script",side:"client",workflows:["wf2","wf4"]},{id:"s44",name:"Client Approved DB Script",side:"client",workflows:["wf2","wf4"]},{id:"s45",name:"Client Rejected DB Script",side:"client",workflows:["wf2","wf4"]},{id:"s46",name:"Release in Progress",side:"svm",workflows:["wf2","wf4"]},{id:"s47",name:"DB Script Delivered",side:"svm",workflows:["wf2","wf4"]},{id:"s48",name:"Script Delivered",side:"svm",workflows:["wf2","wf4"]},{id:"s49",name:"Invoice Yet to Raise",side:"svm",workflows:["wf2","wf4"]},{id:"s50",name:"Invoice Issued",side:"svm",workflows:["wf2","wf4"]},{id:"s51",name:"DB Script Rejected",side:"svm",workflows:["wf2","wf4"]},{id:"s52",name:"SYS/User Configuration",side:"svm",workflows:["wf2","wf4"]},{id:"s53",name:"Get Confirmation",side:"client",workflows:["wf2","wf4"]},{id:"s54",name:"Confirmation",side:"client",workflows:["wf2","wf4"]},{id:"s55",name:"Completed",side:"svm",workflows:["wf2","wf4"]},{id:"s56",name:"User Request",side:"client",workflows:["wf2","wf4"]},{id:"s57",name:"Review",side:"svm",workflows:["wf2","wf4"]},{id:"s58",name:"Clarification Dev",side:"engineering",workflows:["wf1","wf3"]},{id:"s59",name:"Assign HD Clarification",side:"svm",workflows:["wf1","wf3"]},{id:"s60",name:"FOR HD ACTION",side:"svm",workflows:["wf3","wf4"]},{id:"s61",name:"Findings",side:"engineering",workflows:["wf3"]}];
+const SC={svm:"#3b82f6",client:"#8b5cf6",engineering:"#f59e0b"};
+const SL={svm:"SVM",client:"Client",engineering:"Engineering"};
+const BC={safe:"#10b981",warning:"#f59e0b",danger:"#ef4444",breached:"#7f1d1d"};
+const PGS=15;
+
+/* ─── UTILITIES ─── */
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const parseHM=s=>{const[h,m]=(s||"00:00").split(":").map(Number);return h*60+(m||0);};
+function dYMD(d){const t=new Date(d);return`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;}
+function fDate(d){if(!d)return"—";return new Date(d).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});}
+function fDT(d){if(!d)return"—";return new Date(d).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:true});}
+function fDur(m){if(m==null||isNaN(m))return"—";const n=m<0,a=Math.abs(Math.round(m)),d=Math.floor(a/1440),h=Math.floor((a%1440)/60),mn=a%60;let s=n?"-":"";if(d>0)s+=d+"d ";if(h>0||d>0)s+=h+"h ";s+=mn+"m";return s.trim();}
+function getBizMin(sI,eI,cfg,hs){const s=new Date(sI),e=new Date(eI);if(s>=e)return 0;const bS=parseHM(cfg.businessStart),bE=parseHM(cfg.businessEnd),is24=bS===0&&bE>=1439;let t=0,c=new Date(s);while(c<e){const dw=c.getDay(),ym=dYMD(c);if(cfg.workDays.includes(dw)&&!hs.has(ym)){let dS,dE;if(is24){dS=new Date(c.getFullYear(),c.getMonth(),c.getDate(),0,0,0);dE=new Date(c.getFullYear(),c.getMonth(),c.getDate(),23,59,59);}else{dS=new Date(c.getFullYear(),c.getMonth(),c.getDate(),Math.floor(bS/60),bS%60,0);dE=new Date(c.getFullYear(),c.getMonth(),c.getDate(),Math.floor(bE/60),bE%60,0);}const sS=c>dS?c:dS,sE=e<dE?e:dE;if(sE>sS)t+=(sE-sS)/60000;}c=new Date(c.getFullYear(),c.getMonth(),c.getDate()+1,0,0,0);}return t;}
+function calcSLA(tk,cfg,hs){if(!tk.history?.length)return{totalMin:0,clientMin:0,svmMin:0,engMin:0,perOwner:{},perSide:{svm:0,client:0,engineering:0}};const now=new Date();let tM=0,cM=0,sM=0,eM=0;const pO={},pS={svm:0,client:0,engineering:0};for(let i=0;i<tk.history.length;i++){const en=tk.history[i],sd=en.side||"svm",sS=new Date(en.timestamp);let sE;if(i<tk.history.length-1)sE=new Date(tk.history[i+1].timestamp);else if(tk.closedAt)sE=new Date(tk.closedAt);else sE=now;const mn=getBizMin(sS,sE,cfg,hs);if(sd==="client")cM+=mn;else if(sd==="engineering"){eM+=mn;tM+=mn;}else{sM+=mn;tM+=mn;}pS[sd]=(pS[sd]||0)+mn;const ow=en.owner||"Unassigned";if(sd!=="client")pO[ow]=(pO[ow]||0)+mn;}return{totalMin:tM,clientMin:cM,svmMin:sM,engMin:eM,perOwner:pO,perSide:pS};}
+function bLvl(el,tg){if(tg<=0)return"safe";const p=el/tg;if(p>=1)return"breached";if(p>=.9)return"danger";if(p>=.75)return"warning";return"safe";}
+function bBadge(l){return{safe:{bg:"#dcfce7",tx:"#166534",lb:"On Track"},warning:{bg:"#fef3c7",tx:"#92400e",lb:"At Risk"},danger:{bg:"#fee2e2",tx:"#991b1b",lb:"Critical"},breached:{bg:"#7f1d1d",tx:"#fff",lb:"Breached"}}[l]||{bg:"#dcfce7",tx:"#166534",lb:"On Track"};}
+function getWk(d){const dt=new Date(d),j=new Date(dt.getFullYear(),0,1),w=Math.ceil(((dt-j)/864e5+j.getDay()+1)/7);return`${dt.getFullYear()}-W${String(w).padStart(2,"0")}`;}
+function getMo(d){const dt=new Date(d);return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`;}
+function useStore(key,def){const[data,setData]=useState(def);const[ld,setLd]=useState(false);useEffect(()=>{(async()=>{try{const r=await window.storage.get(key);if(r&&r.value)setData(JSON.parse(r.value));}catch(e){}setLd(true);})();},[key]);const save=useCallback(async v=>{setData(v);try{await window.storage.set(key,JSON.stringify(v));}catch(e){console.error(e);}},[key]);return[data,save,ld];}
+
+/* ─── UI PRIMITIVES ─── */
+const Bdg=({children,bg,color:c})=><span style={{background:bg,color:c,padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:600,whiteSpace:"nowrap",display:"inline-block"}}>{children}</span>;
+const SBdg=({side})=><Bdg bg={SC[side]+"22"} color={SC[side]}>{SL[side]||side}</Bdg>;
+function Btn({children,onClick,variant="primary",small,disabled,style:sx}){const v={primary:{background:"#4f46e5",color:"#fff"},secondary:{background:"#e2e8f0",color:"#334155"},danger:{background:"#fee2e2",color:"#991b1b"},success:{background:"#dcfce7",color:"#166534"},ghost:{background:"transparent",color:"#4f46e5"},escalate:{background:"#fef3c7",color:"#92400e"},outline:{background:"#fff",color:"#4f46e5",border:"1px solid #c7d2fe"}};return <button style={{padding:small?"4px 10px":"8px 16px",borderRadius:8,border:"none",fontWeight:600,fontSize:small?11:13,cursor:disabled?"not-allowed":"pointer",display:"inline-flex",alignItems:"center",gap:5,opacity:disabled?.5:1,...v[variant],...sx}} onClick={onClick} disabled={disabled}>{children}</button>;}
+function Inp({label,...p}){return <div style={{display:"flex",flexDirection:"column",gap:3}}>{label&&<label style={{fontSize:11,fontWeight:600,color:"#64748b"}}>{label}</label>}<input {...p} style={{padding:"7px 11px",borderRadius:7,border:"1px solid #e2e8f0",fontSize:13,outline:"none",...p.style}}/></div>;}
+function Sel({label,options=[],...p}){return <div style={{display:"flex",flexDirection:"column",gap:3}}>{label&&<label style={{fontSize:11,fontWeight:600,color:"#64748b"}}>{label}</label>}<select {...p} style={{padding:"7px 11px",borderRadius:7,border:"1px solid #e2e8f0",fontSize:13,outline:"none",background:"#fff",...p.style}}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></div>;}
+const Card=({children,style:sx,onClick})=><div onClick={onClick} style={{background:"#fff",borderRadius:12,padding:18,border:"1px solid #e9ecf2",cursor:onClick?"pointer":"default",...sx}}>{children}</div>;
+function Modal({open,onClose,title,children,wide}){if(!open)return null;return <div style={{position:"fixed",inset:0,zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.4)"}} onClick={onClose}><div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:16,padding:22,minWidth:380,maxWidth:wide?750:520,maxHeight:"88vh",overflow:"auto",boxShadow:"0 25px 60px rgba(0,0,0,.2)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><h3 style={{margin:0,fontSize:17,fontWeight:700}}>{title}</h3><button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",padding:4}}><X_ size={18}/></button></div>{children}</div></div>;}
+function KPI({icon:Ic,label,value,sub,accent}){return <Card style={{display:"flex",gap:12,alignItems:"flex-start"}}><div style={{width:40,height:40,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",background:(accent||"#4f46e5")+"18"}}><Ic size={19} color={accent||"#4f46e5"}/></div><div><div style={{fontSize:22,fontWeight:800,lineHeight:1,color:"#0f172a"}}>{value}</div><div style={{fontSize:12,color:"#64748b",marginTop:3}}>{label}</div>{sub&&<div style={{fontSize:11,color:"#94a3b8",marginTop:1}}>{sub}</div>}</div></Card>;}
+function Pgn({total,page,setPage}){const pages=Math.ceil(total/PGS);if(pages<=1)return null;return <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4,marginTop:16}}><Btn small variant="secondary" disabled={page===1} onClick={()=>setPage(page-1)}>Prev</Btn>{Array.from({length:Math.min(pages,7)},(_,i)=>{let p;if(pages<=7)p=i+1;else if(page<=4)p=i+1;else if(page>=pages-3)p=pages-6+i;else p=page-3+i;return <button key={p} onClick={()=>setPage(p)} style={{width:32,height:32,borderRadius:6,border:"none",fontWeight:p===page?700:500,fontSize:13,cursor:"pointer",background:p===page?"#4f46e5":"transparent",color:p===page?"#fff":"#64748b"}}>{p}</button>;})}<Btn small variant="secondary" disabled={page===pages} onClick={()=>setPage(page+1)}>Next</Btn><span style={{fontSize:12,color:"#94a3b8",marginLeft:8}}>{total} items</span></div>;}
+function STH({label,sk,sort,setSort}){const a=sort.key===sk;return <th onClick={()=>setSort({key:sk,dir:a&&sort.dir==="asc"?"desc":"asc"})} style={{textAlign:"left",padding:"9px 12px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontWeight:700,color:"#475569",fontSize:11,whiteSpace:"nowrap",cursor:"pointer",userSelect:"none"}}><span style={{display:"inline-flex",alignItems:"center",gap:4}}>{label}{a?(sort.dir==="asc"?<ArrowUp size={12}/>:<ArrowDown size={12}/>):<ArrowUpDown size={12} style={{opacity:.3}}/>}</span></th>;}
+function DR({from,to,setFrom,setTo}){return <div style={{display:"flex",gap:8,alignItems:"flex-end"}}><Inp label="From" type="date" value={from} onChange={e=>setFrom(e.target.value)} style={{width:140}}/><Inp label="To" type="date" value={to} onChange={e=>setTo(e.target.value)} style={{width:140}}/>{(from||to)&&<Btn small variant="ghost" onClick={()=>{setFrom("");setTo("");}}>Clear</Btn>}</div>;}
+function TTmr({ticket:tk,severities:svs,config:cfg,holidaySet:hs}){const[now,setNow]=useState(Date.now());useEffect(()=>{if(tk.closedAt)return;const iv=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(iv);},[tk.closedAt]);const sla=useMemo(()=>calcSLA(tk,cfg,hs),[tk,cfg,hs,now]);const sv=svs.find(s=>s.id===tk.severity),tg=(sv?.resolutionHours||0)*60,rm=tg-sla.totalMin,lv=bLvl(sla.totalMin,tg),b=bBadge(lv);return <div style={{display:"flex",alignItems:"center",gap:8}}><Bdg bg={b.bg} color={b.tx}>{b.lb}</Bdg><span style={{fontSize:12,fontWeight:700,color:lv==="breached"?"#dc2626":"#0f172a",fontVariantNumeric:"tabular-nums"}}>{lv==="breached"?`+${fDur(Math.abs(rm))}`:`${fDur(rm)} left`}</span></div>;}
+function Cfm({open,onClose,onConfirm,title,message}){return <Modal open={open} onClose={onClose} title={title||"Confirm"}><p style={{fontSize:14,color:"#334155",margin:"0 0 16px"}}>{message}</p><div style={{display:"flex",justifyContent:"flex-end",gap:8}}><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="danger" onClick={()=>{onConfirm();onClose();}}>Confirm</Btn></div></Modal>;}
+// ─── MAIN APP ──────────────────────────────────────────────────
+function App(){
+  const[page,setPage]=useState("tickets");
+  const[sub,setSub]=useState(null);
+  const[selTk,setSelTk]=useState(null);
+  const[sideOpen,setSideOpen]=useState(true);
+  const[cfg,saveCfg,c1]=useStore(SK.config,DEF_CONFIG);
+  const[holidays,saveHol,c2]=useStore(SK.holidays,[]);
+  const[statuses,saveSts,c3]=useStore(SK.statuses,DEF_ST);
+  const[teams,saveTms,c4]=useStore(SK.teams,DEF_TEAMS);
+  const[modules,saveMods,c5]=useStore(SK.modules,DEF_MODS);
+  const[sevs,saveSevs,c6]=useStore(SK.severities,DEF_SEVS);
+  const[tickets,saveTix,c7]=useStore(SK.tickets,[]);
+  const[wfs,saveWfs,c8]=useStore(SK.workflows,DEF_WF);
+  const rdy=c1&&c2&&c3&&c4&&c5&&c6&&c7&&c8;
+  const hs=useMemo(()=>new Set(holidays.map(h=>h.date)),[holidays]);
+  const active=useMemo(()=>tickets.filter(t=>!t.closedAt),[tickets]);
+  const closed=useMemo(()=>tickets.filter(t=>t.closedAt),[tickets]);
+  const alerts=useMemo(()=>active.filter(t=>{const sla=calcSLA(t,cfg,hs);const sv=sevs.find(s=>s.id===t.severity);return bLvl(sla.totalMin,(sv?.resolutionHours||0)*60)==="danger"||bLvl(sla.totalMin,(sv?.resolutionHours||0)*60)==="breached";}),[active,cfg,hs,sevs]);
+  const escTix=useMemo(()=>active.filter(t=>t.isEscalated),[active]);
+  const nav=(p,s)=>{setPage(p);setSub(s||null);setSelTk(null);};
+  const updTk=u=>saveTix(tickets.map(x=>x.id===u.id?u:x));
+  const delTk=id=>saveTix(tickets.filter(x=>x.id!==id));
+  if(!rdy)return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:"system-ui"}}><div style={{textAlign:"center"}}><RefreshCw size={32} style={{color:"#4f46e5",animation:"spin 1s linear infinite"}}/><p style={{marginTop:12,color:"#64748b"}}>Loading...</p><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div></div>;
+  const sW=sideOpen?220:0;
+  const ni=[{id:"tickets",icon:Ticket,label:"Active Tickets",count:active.length},{id:"dashboard",icon:LayoutDashboard,label:"Dashboard"},{id:"escalations",icon:Flag,label:"Escalations",count:escTix.length},{id:"report",icon:FileText,label:"SLA Report",count:closed.length},{id:"analytics",icon:TrendingUp,label:"Analytics"},{id:"settings",icon:Settings,label:"Settings"}];
+  const dp={statuses,teams,severities:sevs,modules,workflows:wfs,config:cfg,holidaySet:hs,onUpdate:updTk,onDelete:delTk};
+  let content;
+  if(selTk){const t=tickets.find(x=>x.id===selTk);content=t?<TkDetail ticket={t} {...dp} allTickets={tickets} onBack={()=>setSelTk(null)}/>:<p>Not found</p>;}
+  else if(page==="dashboard")content=<Dash tickets={tickets} active={active} closed={closed} sevs={sevs} teams={teams} modules={modules} cfg={cfg} hs={hs} onNav={nav} onSel={setSelTk}/>;
+  else if(page==="tickets")content=<TkList tickets={active} sevs={sevs} teams={teams} modules={modules} wfs={wfs} statuses={statuses} cfg={cfg} hs={hs} onSel={setSelTk} allTix={tickets} onCreate={t=>saveTix([...tickets,t])} onBulk={arr=>saveTix([...tickets,...arr])}/>;
+  else if(page==="escalations")content=<EscPanel tickets={escTix} sevs={sevs} teams={teams} cfg={cfg} hs={hs} onSel={setSelTk}/>;
+  else if(page==="report")content=<Report tickets={closed} sevs={sevs} teams={teams} modules={modules} cfg={cfg} hs={hs} onSel={setSelTk}/>;
+  else if(page==="analytics")content=<Analytics tickets={tickets} active={active} closed={closed} sevs={sevs} teams={teams} modules={modules} cfg={cfg} hs={hs} sub={sub} setSub={setSub}/>;
+  else if(page==="settings")content=<Sett cfg={cfg} saveCfg={saveCfg} holidays={holidays} saveHol={saveHol} statuses={statuses} saveSts={saveSts} teams={teams} saveTms={saveTms} modules={modules} saveMods={saveMods} sevs={sevs} saveSevs={saveSevs} wfs={wfs} saveWfs={saveWfs} allData={{config:cfg,holidays,statuses,teams,modules,severities:sevs,tickets,workflows:wfs}} onRestore={async d=>{if(d.config)await saveCfg(d.config);if(d.holidays)await saveHol(d.holidays);if(d.statuses)await saveSts(d.statuses);if(d.teams)await saveTms(d.teams);if(d.modules)await saveMods(d.modules);if(d.severities)await saveSevs(d.severities);if(d.tickets)await saveTix(d.tickets);if(d.workflows)await saveWfs(d.workflows);}} sub={sub} setSub={setSub}/>;
+  return <div style={{fontFamily:"'Inter',system-ui,sans-serif",background:"#f4f6fa",minHeight:"100vh"}}>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <div style={{width:220,background:"#0f172a",color:"#e2e8f0",display:"flex",flexDirection:"column",height:"100vh",position:"fixed",left:0,top:0,zIndex:200,transform:sideOpen?"translateX(0)":"translateX(-220px)",transition:"transform .2s"}}>
+      <div style={{padding:"18px 16px 10px",borderBottom:"1px solid #1e293b"}}><div style={{display:"flex",alignItems:"center",gap:9}}><Shield size={20} color="#818cf8"/><span style={{fontWeight:800,fontSize:16}}>SLA Manager</span></div><div style={{fontSize:10,color:"#64748b",marginTop:5}}>Resolution Tracker · v2</div></div>
+      <nav style={{flex:1,padding:"10px 8px",display:"flex",flexDirection:"column",gap:1}}>{ni.map(it=><button key={it.id} onClick={()=>nav(it.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"9px 11px",borderRadius:7,border:"none",background:page===it.id?"#1e293b":"transparent",color:page===it.id?"#fff":"#94a3b8",cursor:"pointer",width:"100%",textAlign:"left",fontSize:13,fontWeight:page===it.id?700:500}}><it.icon size={17}/><span style={{flex:1}}>{it.label}</span>{it.count!=null&&<span style={{background:page===it.id?"#4f46e5":"#334155",padding:"1px 7px",borderRadius:10,fontSize:10,fontWeight:700}}>{it.count}</span>}</button>)}</nav>
+      {alerts.length>0&&<div style={{padding:"10px 14px",borderTop:"1px solid #1e293b"}}><div onClick={()=>nav("tickets")} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#fbbf24",fontWeight:600,cursor:"pointer"}}><Bell size={14}/>{alerts.length} need attention</div></div>}
+      <div style={{padding:"10px 16px",borderTop:"1px solid #1e293b",fontSize:10,color:"#475569"}}>24/5 Mon-Fri · IST</div>
+    </div>
+    <div style={{marginLeft:sW,transition:"margin-left .2s",minHeight:"100vh"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 24px",background:"#fff",borderBottom:"1px solid #e9ecf2",position:"sticky",top:0,zIndex:100}}>
+        <button onClick={()=>setSideOpen(!sideOpen)} style={{background:"none",border:"none",cursor:"pointer",padding:4}}><Menu size={20} color="#475569"/></button>
+        <div style={{flex:1}}/>
+        {alerts.length>0&&<div onClick={()=>nav("tickets")} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",background:"#fef3c7",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:600,color:"#92400e"}}><AlertTriangle size={14}/>{alerts.length} approaching/breached</div>}
+        <span style={{fontSize:12,color:"#94a3b8"}}>{new Date().toLocaleString("en-IN",{timeZone:"Asia/Kolkata",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</span>
+      </div>
+      <div style={{padding:"20px 28px"}}>{content}</div>
+    </div>
+  </div>;
+}
+
+// ─── DASHBOARD ─────────────────────────────────────────────────
+function Dash({tickets,active,closed,sevs,teams,modules,cfg,hs,onNav,onSel}){
+  const[now,setNow]=useState(Date.now());const[dF,setDF]=useState("");const[dT,setDT]=useState("");
+  useEffect(()=>{const iv=setInterval(()=>setNow(Date.now()),60000);return()=>clearInterval(iv);},[]);
+  const fClosed=useMemo(()=>closed.filter(t=>{if(dF&&t.closedAt<dF)return false;if(dT&&t.closedAt>dT+"T23:59:59")return false;return true;}),[closed,dF,dT]);
+  const stats=useMemo(()=>{let br=0,ar=0,ok=0,esc=0;active.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),lv=bLvl(sla.totalMin,(sv?.resolutionHours||0)*60);if(lv==="breached")br++;else if(lv==="danger"||lv==="warning")ar++;else ok++;if(t.isEscalated)esc++;});let cb=0;fClosed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity);if(sla.totalMin>(sv?.resolutionHours||0)*60)cb++;});return{br,ar,ok,esc,cb,comp:fClosed.length?Math.round(((fClosed.length-cb)/fClosed.length)*100):100};},[active,fClosed,sevs,cfg,hs,now]);
+  const sevCh=useMemo(()=>sevs.map(s=>({name:s.name,active:active.filter(t=>t.severity===s.id).length,closed:fClosed.filter(t=>t.severity===s.id).length})),[active,fClosed,sevs]);
+  const sideCh=useMemo(()=>{let sv=0,cl=0,en=0;active.forEach(t=>{const l=t.history?.[t.history.length-1];if(l?.side==="client")cl++;else if(l?.side==="engineering")en++;else sv++;});return[{name:"SVM",value:sv,color:SC.svm},{name:"Client",value:cl,color:SC.client},{name:"Engineering",value:en,color:SC.engineering}].filter(x=>x.value>0);},[active]);
+  const brList=useMemo(()=>active.filter(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity);return sla.totalMin>(sv?.resolutionHours||0)*60;}).sort((a,b)=>{const sa=calcSLA(a,cfg,hs),sb=calcSLA(b,cfg,hs),svA=sevs.find(s=>s.id===a.severity),svB=sevs.find(s=>s.id===b.severity);return(sb.totalMin-(svB?.resolutionHours||0)*60)-(sa.totalMin-(svA?.resolutionHours||0)*60);}).slice(0,8),[active,sevs,cfg,hs,now]);
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:12}}>
+      <div><h1 style={{fontSize:22,fontWeight:800,color:"#0f172a",margin:0}}>Dashboard</h1><p style={{color:"#64748b",fontSize:13,margin:"3px 0 0"}}>SLA overview</p></div>
+      <DR from={dF} to={dT} setFrom={setDF} setTo={setDT}/>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))",gap:14,marginBottom:24}}>
+      <KPI icon={Ticket} label="Active" value={active.length} accent="#4f46e5"/>
+      <KPI icon={CheckCircle} label="On Track" value={stats.ok} accent="#10b981"/>
+      <KPI icon={AlertTriangle} label="At Risk" value={stats.ar} accent="#f59e0b"/>
+      <KPI icon={XCircle} label="Breached" value={stats.br} accent="#dc2626"/>
+      <KPI icon={TrendingUp} label="Compliance" value={`${stats.comp}%`} sub={`${fClosed.length} closed`} accent="#10b981"/>
+      <KPI icon={Flag} label="Escalated" value={stats.esc} accent="#ea580c"/>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:24}}>
+      <Card><h3 style={{margin:"0 0 14px",fontSize:14,fontWeight:700}}>By Severity</h3><ResponsiveContainer width="100%" height={200}><BarChart data={sevCh}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/><XAxis dataKey="name" fontSize={11}/><YAxis fontSize={11} allowDecimals={false}/><Tooltip/><Bar dataKey="active" fill="#4f46e5" name="Active" radius={[3,3,0,0]}/><Bar dataKey="closed" fill="#10b981" name="Closed" radius={[3,3,0,0]}/></BarChart></ResponsiveContainer></Card>
+      <Card><h3 style={{margin:"0 0 14px",fontSize:14,fontWeight:700}}>Active by Side</h3>{sideCh.length?<ResponsiveContainer width="100%" height={200}><PieChart><Pie data={sideCh} cx="50%" cy="50%" outerRadius={75} dataKey="value" label={({name,value})=>`${name}: ${value}`}>{sideCh.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Tooltip/></PieChart></ResponsiveContainer>:<div style={{textAlign:"center",padding:40,color:"#94a3b8"}}>No active tickets</div>}</Card>
+    </div>
+    {brList.length>0&&<Card style={{borderLeft:"4px solid #dc2626",marginBottom:16}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700,color:"#dc2626",display:"flex",alignItems:"center",gap:7}}><AlertTriangle size={16}/>Breached — Needs Attention</h3><div style={{display:"flex",flexDirection:"column",gap:6}}>{brList.map(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),ov=sla.totalMin-(sv?.resolutionHours||0)*60;return <div key={t.id} onClick={()=>onSel(t.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 11px",background:"#fef2f2",borderRadius:7,cursor:"pointer",fontSize:13}}><b style={{minWidth:90}}>{t.ticketNo}</b><span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</span><Bdg bg={sv?.color+"22"} color={sv?.color}>{sv?.name}</Bdg>{t.isEscalated&&<Bdg bg="#fef3c7" color="#92400e">Esc</Bdg>}<span style={{fontWeight:700,color:"#dc2626",fontSize:12}}>+{fDur(ov)}</span></div>;})}</div></Card>}
+  </div>;
+}
+
+// ─── TICKETS LIST ──────────────────────────────────────────────
+function TkList({tickets,sevs,teams,modules,wfs,statuses,cfg,hs,onSel,allTix,onCreate,onBulk}){
+  const[showC,setShowC]=useState(false);const[showI,setShowI]=useState(false);
+  const[search,setSearch]=useState("");const[fS,setFS]=useState("");const[fT,setFT]=useState("");
+  const[pg,setPg]=useState(1);const[sort,setSort]=useState({key:"urgency",dir:"asc"});
+  const enr=useMemo(()=>tickets.map(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60;return{...t,sla,sv,tg,rm:tg-sla.totalMin,lv:bLvl(sla.totalMin,tg)};}),[tickets,sevs,cfg,hs]);
+  const filt=useMemo(()=>enr.filter(t=>{if(search&&!t.ticketNo.toLowerCase().includes(search.toLowerCase())&&!t.title.toLowerCase().includes(search.toLowerCase())&&!(t.currentOwner||"").toLowerCase().includes(search.toLowerCase()))return false;if(fS&&t.severity!==fS)return false;if(fT&&t.currentTeam!==fT)return false;return true;}),[enr,search,fS,fT]);
+  const srt=useMemo(()=>[...filt].sort((a,b)=>{const d=sort.dir==="asc"?1:-1;if(sort.key==="urgency")return(a.rm-b.rm)*d;if(sort.key==="ticket")return a.ticketNo.localeCompare(b.ticketNo)*d;if(sort.key==="severity")return((a.sv?.resolutionHours||999)-(b.sv?.resolutionHours||999))*d;if(sort.key==="owner")return(a.currentOwner||"").localeCompare(b.currentOwner||"")*d;if(sort.key==="elapsed")return(a.sla.totalMin-b.sla.totalMin)*d;if(sort.key==="created")return(new Date(a.createdAt)-new Date(b.createdAt))*d;return 0;}),[filt,sort]);
+  const pgd=srt.slice((pg-1)*PGS,pg*PGS);
+  useEffect(()=>setPg(1),[search,fS,fT,sort]);
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+      <div><h1 style={{fontSize:22,fontWeight:800,color:"#0f172a",margin:0}}>Active Tickets</h1><p style={{color:"#64748b",fontSize:13,margin:"3px 0 0"}}>{filt.length} tickets</p></div>
+      <div style={{display:"flex",gap:8}}><Btn variant="outline" onClick={()=>setShowI(true)}><Upload size={14}/>Bulk Import</Btn><Btn onClick={()=>setShowC(true)}><Plus size={14}/>New Ticket</Btn></div>
+    </div>
+    <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}}>
+      <div style={{position:"relative",flex:1,minWidth:180}}><Search size={15} style={{position:"absolute",left:10,top:9,color:"#94a3b8"}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search ticket, title, owner..." style={{width:"100%",padding:"7px 11px 7px 34px",borderRadius:7,border:"1px solid #e2e8f0",fontSize:13,outline:"none",boxSizing:"border-box"}}/></div>
+      <Sel value={fS} onChange={e=>setFS(e.target.value)} options={[{value:"",label:"All Severities"},...sevs.map(s=>({value:s.id,label:s.name}))]}/>
+      <Sel value={fT} onChange={e=>setFT(e.target.value)} options={[{value:"",label:"All Teams"},...teams.map(t=>({value:t.id,label:t.name}))]}/>
+      <Sel value={sort.key+"|"+sort.dir} onChange={e=>{const[k,d]=e.target.value.split("|");setSort({key:k,dir:d});}} options={[{value:"urgency|asc",label:"Most Urgent"},{value:"urgency|desc",label:"Least Urgent"},{value:"created|desc",label:"Newest"},{value:"created|asc",label:"Oldest"},{value:"severity|asc",label:"Highest Severity"},{value:"elapsed|desc",label:"Most Elapsed"}]}/>
+    </div>
+    {pgd.length===0?<Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No active tickets{search?" matching search":""}.</Card>:
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>{pgd.map(t=>{const tm=teams.find(x=>x.id===t.currentTeam);const lH=t.history?.[t.history.length-1];const cSt=statuses.find(s=>s.id===lH?.statusId);
+      return <Card key={t.id} onClick={()=>onSel(t.id)} style={{cursor:"pointer",padding:14,display:"flex",alignItems:"center",gap:14}}>
+        <div style={{minWidth:90}}><div style={{fontWeight:800,fontSize:13}}>{t.ticketNo}</div><Bdg bg={t.sv?.color+"22"} color={t.sv?.color}>{t.sv?.name||"—"}</Bdg></div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</div><div style={{fontSize:11,color:"#64748b",marginTop:2,display:"flex",gap:10,flexWrap:"wrap"}}><span>Owner: <b>{t.currentOwner||"—"}</b></span><span>Team: <b>{tm?.name||"—"}</b></span>{cSt&&<span>Status: <b>{cSt.name}</b> <SBdg side={lH?.side||"svm"}/></span>}</div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>{t.isEscalated&&<Bdg bg="#fef3c7" color="#92400e">Esc</Bdg>}<TTmr ticket={t} severities={sevs} config={cfg} holidaySet={hs}/><ChevronRight size={16} color="#94a3b8"/></div>
+      </Card>;})}</div>}
+    <Pgn total={filt.length} page={pg} setPage={setPg}/>
+    <Modal open={showC} onClose={()=>setShowC(false)} title="Create New Ticket" wide><CrtForm statuses={statuses} teams={teams} modules={modules} sevs={sevs} wfs={wfs} allTix={allTix} onSave={t=>{onCreate(t);setShowC(false);}} onCancel={()=>setShowC(false)}/></Modal>
+    <Modal open={showI} onClose={()=>setShowI(false)} title="Bulk Import from Excel" wide><BulkImp statuses={statuses} teams={teams} modules={modules} sevs={sevs} wfs={wfs} allTix={allTix} onImport={arr=>{onBulk(arr);setShowI(false);}} onCancel={()=>setShowI(false)}/></Modal>
+  </div>;
+}
+
+function CrtForm({statuses,teams,modules,sevs,wfs,allTix,onSave,onCancel}){
+  const[f,sF]=useState({ticketNo:"",title:"",desc:"",severity:sevs[0]?.id||"",module:modules[0]?.id||"",workflow:wfs[0]?.id||"",owner:"",team:teams[0]?.id||"",createdAt:new Date().toISOString().slice(0,16)});
+  const set=(k,v)=>sF(p=>({...p,[k]:v}));
+  const dup=allTix.some(t=>t.ticketNo.toLowerCase()===f.ticketNo.trim().toLowerCase());
+  const save=()=>{if(!f.ticketNo.trim()||!f.title.trim()||dup)return;const wSts=statuses.filter(s=>s.workflows?.includes(f.workflow));const oSt=wSts.find(s=>s.name==="Open")||wSts[0];onSave({id:uid(),ticketNo:f.ticketNo.trim(),title:f.title.trim(),description:f.desc,severity:f.severity,module:f.module,workflow:f.workflow,currentOwner:f.owner.trim(),currentTeam:f.team,createdAt:new Date(f.createdAt).toISOString(),resolvedAt:null,closedAt:null,isEscalated:false,escalationHistory:[],history:[{id:uid(),statusId:oSt?.id||"",statusName:oSt?.name||"Open",side:oSt?.side||"svm",owner:f.owner.trim(),team:f.team,timestamp:new Date(f.createdAt).toISOString(),note:"Ticket created"}]});};
+  return <div style={{display:"flex",flexDirection:"column",gap:12}}>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><div><Inp label="Ticket No *" value={f.ticketNo} onChange={e=>set("ticketNo",e.target.value)} placeholder="e.g. SWIPHX-1234"/>{dup&&<span style={{fontSize:11,color:"#dc2626",fontWeight:600}}>Duplicate ticket number!</span>}</div><Inp label="Created" type="datetime-local" value={f.createdAt} onChange={e=>set("createdAt",e.target.value)}/></div>
+    <Inp label="Title *" value={f.title} onChange={e=>set("title",e.target.value)} placeholder="Brief description"/>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><Sel label="Workflow" value={f.workflow} onChange={e=>set("workflow",e.target.value)} options={wfs.map(w=>({value:w.id,label:w.name}))}/><Sel label="Severity" value={f.severity} onChange={e=>set("severity",e.target.value)} options={sevs.map(s=>({value:s.id,label:`${s.name} (${s.resolutionHours}h)`}))}/></div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><Sel label="Module" value={f.module} onChange={e=>set("module",e.target.value)} options={modules.map(m=>({value:m.id,label:m.name}))}/><Sel label="Team" value={f.team} onChange={e=>set("team",e.target.value)} options={teams.map(t=>({value:t.id,label:t.name}))}/></div>
+    <Inp label="Owner" value={f.owner} onChange={e=>set("owner",e.target.value)} placeholder="Person name"/>
+    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:6}}><Btn variant="secondary" onClick={onCancel}>Cancel</Btn><Btn onClick={save} disabled={!f.ticketNo.trim()||!f.title.trim()||dup}><Save size={13}/>Create</Btn></div>
+  </div>;
+}
+
+function BulkImp({statuses,teams,modules,sevs,wfs,allTix,onImport,onCancel}){
+  const[preview,setPrev]=useState([]);const[err,setErr]=useState("");const fR=useRef();
+  const handle=e=>{const file=e.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:"array"}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws),ex=new Set(allTix.map(t=>t.ticketNo.toLowerCase()));const m=rows.map(r=>{const tN=(r["Ticket No"]||r["TicketNo"]||"").toString().trim(),tl=(r["Title"]||r["Summary"]||"").toString().trim(),svN=(r["Severity"]||r["Priority"]||"").toString().trim(),sv=sevs.find(s=>s.name.toLowerCase()===svN.toLowerCase()),wfN=(r["Workflow"]||"").toString().trim(),wf=wfs.find(w=>w.name.toLowerCase()===wfN.toLowerCase())||wfs[0],modN=(r["Module"]||"").toString().trim(),mod=modules.find(m=>m.name.toLowerCase()===modN.toLowerCase()),tmN=(r["Team"]||"").toString().trim(),tm=teams.find(t=>t.name.toLowerCase()===tmN.toLowerCase()),ow=(r["Owner"]||"").toString().trim(),cr=r["Created"]||new Date().toISOString(),isDup=ex.has(tN.toLowerCase());return{tN,tl,sv,wf,mod,tm,ow,cr,isDup,valid:!!tN&&!!tl&&!isDup&&!!sv};});setPrev(m);setErr("");}catch(err){setErr("Parse error: "+err.message);}};r.readAsArrayBuffer(file);};
+  const doImp=()=>{const v=preview.filter(r=>r.valid).map(r=>{const oSt=statuses.find(s=>s.name==="Open"&&s.workflows?.includes(r.wf?.id))||statuses.find(s=>s.name==="Open");const ts=new Date(r.cr).toISOString();return{id:uid(),ticketNo:r.tN,title:r.tl,description:"",severity:r.sv?.id||"",module:r.mod?.id||"",workflow:r.wf?.id||"",currentOwner:r.ow,currentTeam:r.tm?.id||"",createdAt:ts,resolvedAt:null,closedAt:null,isEscalated:false,escalationHistory:[],history:[{id:uid(),statusId:oSt?.id||"",statusName:oSt?.name||"Open",side:oSt?.side||"svm",owner:r.ow,team:r.tm?.id||"",timestamp:ts,note:"Bulk imported"}]};});onImport(v);};
+  const vc=preview.filter(r=>r.valid).length;
+  return <div style={{display:"flex",flexDirection:"column",gap:12}}>
+    <div style={{padding:14,background:"#f0f9ff",borderRadius:8,fontSize:13,color:"#1e40af"}}>Upload Excel with columns: <b>Ticket No, Title, Severity, Workflow, Module, Team, Owner, Created</b></div>
+    <input ref={fR} type="file" accept=".xlsx,.xls,.csv" onChange={handle} style={{fontSize:13}}/>
+    {err&&<div style={{color:"#dc2626",fontSize:13}}>{err}</div>}
+    {preview.length>0&&<div><div style={{fontSize:13,fontWeight:600,marginBottom:8}}>{vc}/{preview.length} valid</div><div style={{maxHeight:250,overflow:"auto",border:"1px solid #e2e8f0",borderRadius:8}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr>{["","Ticket","Title","Severity","Workflow"].map(h=><th key={h} style={{padding:"6px 10px",background:"#f8fafc",borderBottom:"1px solid #e2e8f0",textAlign:"left",fontWeight:700,fontSize:11}}>{h}</th>)}</tr></thead><tbody>{preview.slice(0,50).map((r,i)=><tr key={i} style={{background:r.valid?"#fff":"#fef2f2"}}><td style={{padding:"5px 10px",borderBottom:"1px solid #f1f5f9"}}>{r.valid?"✅":r.isDup?"🔁":"❌"}</td><td style={{padding:"5px 10px",borderBottom:"1px solid #f1f5f9",fontWeight:600}}>{r.tN||"—"}</td><td style={{padding:"5px 10px",borderBottom:"1px solid #f1f5f9"}}>{r.tl||"—"}</td><td style={{padding:"5px 10px",borderBottom:"1px solid #f1f5f9"}}>{r.sv?.name||"❌"}</td><td style={{padding:"5px 10px",borderBottom:"1px solid #f1f5f9"}}>{r.wf?.name||"—"}</td></tr>)}</tbody></table></div></div>}
+    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:6}}><Btn variant="secondary" onClick={onCancel}>Cancel</Btn><Btn onClick={doImp} disabled={vc===0}><Upload size={13}/>Import {vc}</Btn></div>
+  </div>;
+}
+
+// ─── TICKET DETAIL ─────────────────────────────────────────────
+function TkDetail({ticket:tk,statuses,teams,severities:svs,modules,workflows:wfs,config:cfg,holidaySet:hs,onUpdate,onDelete,allTickets,onBack}){
+  const[showSC,setShowSC]=useState(false);const[showEd,setShowEd]=useState(false);const[showDel,setShowDel]=useState(false);
+  const[now,setNow]=useState(Date.now());
+  useEffect(()=>{if(tk.closedAt)return;const iv=setInterval(()=>setNow(Date.now()),15000);return()=>clearInterval(iv);},[tk.closedAt]);
+  const sla=useMemo(()=>calcSLA(tk,cfg,hs),[tk,cfg,hs,now]);
+  const sv=svs.find(s=>s.id===tk.severity),tg=(sv?.resolutionHours||0)*60,rm=tg-sla.totalMin,lv=bLvl(sla.totalMin,tg),bb=bBadge(lv);
+  const tm=teams.find(t=>t.id===tk.currentTeam),mod=modules.find(m=>m.id===tk.module),wf=wfs.find(w=>w.id===tk.workflow);
+  const lH=tk.history?.[tk.history.length-1],cSt=statuses.find(s=>s.id===lH?.statusId),pct=tg>0?Math.min((sla.totalMin/tg)*100,100):0;
+  const hEsc=()=>{const n=new Date().toISOString();onUpdate({...tk,isEscalated:!tk.isEscalated,escalationHistory:[...(tk.escalationHistory||[]),{action:tk.isEscalated?"de-escalated":"escalated",timestamp:n}]});};
+  const hClose=()=>{const cls=statuses.find(s=>s.name==="Closed"&&s.workflows?.includes(tk.workflow)),n=new Date().toISOString();onUpdate({...tk,closedAt:n,resolvedAt:tk.resolvedAt||n,history:[...tk.history,{id:uid(),statusId:cls?.id||"",statusName:"Closed",side:"svm",owner:tk.currentOwner,team:tk.currentTeam,timestamp:n,note:"Ticket closed"}]});};
+  const hReopen=()=>{const rSt=statuses.find(s=>s.name==="Re-Open Review"&&s.workflows?.includes(tk.workflow))||statuses.find(s=>s.name==="Open"&&s.workflows?.includes(tk.workflow)),n=new Date().toISOString();onUpdate({...tk,closedAt:null,resolvedAt:null,history:[...tk.history,{id:uid(),statusId:rSt?.id||"",statusName:rSt?.name||"Re-Opened",side:"svm",owner:tk.currentOwner,team:tk.currentTeam,timestamp:n,note:"Reopened — timer resumed"}]});};
+  const hSCSave=entry=>{const st=statuses.find(s=>s.id===entry.statusId);const isRes=st?.name?.toLowerCase().includes("resolved")||st?.name?.toLowerCase().includes("delivered")||st?.name?.toLowerCase().includes("completed");onUpdate({...tk,currentOwner:entry.owner||tk.currentOwner,currentTeam:entry.team||tk.currentTeam,resolvedAt:isRes?entry.timestamp:tk.resolvedAt,history:[...tk.history,entry]});setShowSC(false);};
+  const hEdSave=u=>{onUpdate({...tk,...u});setShowEd(false);};
+  const owBD=useMemo(()=>Object.entries(sla.perOwner).sort((a,b)=>b[1]-a[1]).map(([o,m])=>({owner:o,mins:m,pct:sla.totalMin>0?Math.round((m/sla.totalMin)*100):0})),[sla]);
+  const hEl=useMemo(()=>{const a=[];let r=0;for(let i=0;i<tk.history.length;i++){if(i>0){const p=tk.history[i-1];if(p.side!=="client")r+=getBizMin(p.timestamp,tk.history[i].timestamp,cfg,hs);}a.push(r);}return a;},[tk.history,cfg,hs]);
+  return <div>
+    <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:5,background:"none",border:"none",color:"#4f46e5",cursor:"pointer",marginBottom:14,fontSize:13,fontWeight:600,padding:0}}><ArrowLeft size={15}/>Back</button>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18,flexWrap:"wrap",gap:10}}>
+      <div><div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}><h1 style={{fontSize:20,fontWeight:800,margin:0}}>{tk.ticketNo}</h1><Bdg bg={sv?.color+"22"} color={sv?.color}>{sv?.name}</Bdg><Bdg bg={bb.bg} color={bb.tx}>{bb.lb}</Bdg>{tk.isEscalated&&<Bdg bg="#fef3c7" color="#92400e">Escalated</Bdg>}{tk.closedAt&&<Bdg bg="#e2e8f0" color="#475569">Closed</Bdg>}</div><p style={{color:"#334155",fontSize:15,margin:"5px 0 0",fontWeight:500}}>{tk.title}</p></div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}><Btn small variant="ghost" onClick={()=>setShowEd(true)}><Edit2 size={13}/>Edit</Btn>{tk.closedAt?<Btn small variant="outline" onClick={hReopen}><RotateCcw size={13}/>Reopen</Btn>:<><Btn small variant="escalate" onClick={hEsc}><Flag size={13}/>{tk.isEscalated?"De-escalate":"Escalate"}</Btn><Btn small variant="secondary" onClick={()=>setShowSC(true)}><RefreshCw size={13}/>Change Status</Btn><Btn small variant="danger" onClick={hClose}><XCircle size={13}/>Close</Btn></>}<Btn small variant="danger" onClick={()=>setShowDel(true)}><Trash2 size={13}/></Btn></div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:20}}>
+      <Card><div style={{fontSize:11,color:"#64748b",fontWeight:600,marginBottom:6}}>SLA Timer</div><div style={{fontSize:26,fontWeight:800,color:lv==="breached"?"#dc2626":"#0f172a",lineHeight:1,fontVariantNumeric:"tabular-nums"}}>{fDur(sla.totalMin)}</div><div style={{fontSize:12,color:"#64748b",marginTop:5}}>of {fDur(tg)} target</div><div style={{height:5,background:"#e2e8f0",borderRadius:3,marginTop:8,overflow:"hidden"}}><div style={{height:"100%",borderRadius:3,width:`${Math.min(pct,100)}%`,background:BC[lv]}}/></div><div style={{fontSize:11,color:lv==="breached"?"#dc2626":"#64748b",marginTop:5,fontWeight:600}}>{lv==="breached"?`Overdue by ${fDur(Math.abs(rm))}`:`${fDur(rm)} remaining`}</div></Card>
+      <Card><div style={{fontSize:11,color:"#64748b",fontWeight:600,marginBottom:6}}>Time by Side</div>{[{l:"SVM",m:sla.svmMin,c:SC.svm},{l:"Engineering",m:sla.engMin,c:SC.engineering},{l:"Client (paused)",m:sla.clientMin,c:SC.client}].map(s=><div key={s.l} style={{display:"flex",alignItems:"center",gap:7,marginBottom:5}}><div style={{width:9,height:9,borderRadius:3,background:s.c}}/><span style={{fontSize:12,flex:1}}>{s.l}</span><span style={{fontSize:12,fontWeight:700,fontVariantNumeric:"tabular-nums"}}>{fDur(s.m)}</span></div>)}</Card>
+      <Card><div style={{fontSize:11,color:"#64748b",fontWeight:600,marginBottom:6}}>Ticket Info</div><div style={{display:"flex",flexDirection:"column",gap:4,fontSize:12}}><div><span style={{color:"#64748b"}}>Status: </span><b>{cSt?.name||"—"}</b> <SBdg side={lH?.side||"svm"}/></div><div><span style={{color:"#64748b"}}>Owner: </span><b>{tk.currentOwner||"—"}</b></div><div><span style={{color:"#64748b"}}>Team: </span><b>{tm?.name||"—"}</b></div><div><span style={{color:"#64748b"}}>Module: </span>{mod?.name||"—"}</div><div><span style={{color:"#64748b"}}>Workflow: </span>{wf?.name||"—"}</div><div><span style={{color:"#64748b"}}>Created: </span>{fDT(tk.createdAt)}</div>{tk.resolvedAt&&<div><span style={{color:"#64748b"}}>Resolved: </span>{fDT(tk.resolvedAt)}</div>}{tk.closedAt&&<div><span style={{color:"#64748b"}}>Closed: </span>{fDT(tk.closedAt)}</div>}</div></Card>
+    </div>
+    {owBD.length>0&&<Card style={{marginBottom:20}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700}}>Time per Owner (SLA counted)</h3>{owBD.map(o=><div key={o.owner} style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}><span style={{minWidth:110,fontSize:12,fontWeight:600}}>{o.owner}</span><div style={{flex:1,height:18,background:"#f1f5f9",borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",borderRadius:4,background:"#4f46e5",width:`${o.pct}%`,display:"flex",alignItems:"center",paddingLeft:6,fontSize:10,color:"#fff",fontWeight:700,minWidth:"fit-content"}}>{fDur(o.mins)} ({o.pct}%)</div></div></div>)}</Card>}
+    {tk.escalationHistory?.length>0&&<Card style={{marginBottom:20,borderLeft:"3px solid #f59e0b"}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700,color:"#92400e",display:"flex",alignItems:"center",gap:6}}><Flag size={15}/>Escalation History</h3>{tk.escalationHistory.map((eh,i)=><div key={i} style={{fontSize:12,padding:"4px 0"}}><b>{eh.action}</b> at {fDT(eh.timestamp)}</div>)}</Card>}
+    <Card><h3 style={{margin:"0 0 14px",fontSize:14,fontWeight:700}}>Status Timeline</h3><div style={{position:"relative",paddingLeft:22}}><div style={{position:"absolute",left:7,top:4,bottom:4,width:2,background:"#e2e8f0"}}/>{tk.history.map((h,i)=>{const isL=i===tk.history.length-1;const dur=i<tk.history.length-1?getBizMin(h.timestamp,tk.history[i+1].timestamp,cfg,hs):(!tk.closedAt?getBizMin(h.timestamp,new Date().toISOString(),cfg,hs):0);return <div key={h.id} style={{position:"relative",paddingBottom:isL?0:18}}><div style={{position:"absolute",left:-18,top:3,width:12,height:12,borderRadius:6,background:SC[h.side]||"#94a3b8",border:"2px solid #fff",boxShadow:`0 0 0 2px ${SC[h.side]||"#94a3b8"}44`}}/><div style={{display:"flex",alignItems:"flex-start",gap:10,flexWrap:"wrap"}}><div style={{minWidth:150}}><div style={{fontSize:13,fontWeight:700}}>{h.statusName}</div><SBdg side={h.side}/></div><div style={{fontSize:11,color:"#64748b"}}><div>{fDT(h.timestamp)}</div><div>Owner: {h.owner||"—"}</div>{h.note&&<div style={{fontStyle:"italic",marginTop:1}}>{h.note}</div>}</div><div style={{fontSize:11,color:"#94a3b8"}}>Elapsed: <b>{fDur(hEl[i])}</b></div>{dur>0&&<div style={{fontSize:11,fontWeight:600,color:h.side==="client"?"#8b5cf6":"#0f172a"}}>{h.side==="client"?`⏸ ${fDur(dur)} paused`:`▶ ${fDur(dur)}`}</div>}</div></div>;})}</div></Card>
+    <Modal open={showSC} onClose={()=>setShowSC(false)} title="Change Status" wide><SCForm ticket={tk} statuses={statuses} teams={teams} cfg={cfg} hs={hs} sla={sla} onSave={hSCSave} onCancel={()=>setShowSC(false)}/></Modal>
+    <Modal open={showEd} onClose={()=>setShowEd(false)} title="Edit Ticket"><EdForm ticket={tk} svs={svs} modules={modules} teams={teams} wfs={wfs} allTix={allTickets} onSave={hEdSave} onCancel={()=>setShowEd(false)}/></Modal>
+    <Cfm open={showDel} onClose={()=>setShowDel(false)} title="Delete Ticket" message={`Permanently delete ${tk.ticketNo}?`} onConfirm={()=>{onDelete(tk.id);onBack();}}/>
+  </div>;
+}
+
+function EdForm({ticket:tk,svs,modules,teams,wfs,onSave,onCancel}){
+  const[f,sF]=useState({title:tk.title,severity:tk.severity,module:tk.module,workflow:tk.workflow,currentOwner:tk.currentOwner,currentTeam:tk.currentTeam});
+  const set=(k,v)=>sF(p=>({...p,[k]:v}));
+  return <div style={{display:"flex",flexDirection:"column",gap:12}}>
+    <Inp label="Title" value={f.title} onChange={e=>set("title",e.target.value)}/>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><Sel label="Severity" value={f.severity} onChange={e=>set("severity",e.target.value)} options={svs.map(s=>({value:s.id,label:s.name}))}/><Sel label="Workflow" value={f.workflow} onChange={e=>set("workflow",e.target.value)} options={wfs.map(w=>({value:w.id,label:w.name}))}/></div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><Sel label="Module" value={f.module} onChange={e=>set("module",e.target.value)} options={modules.map(m=>({value:m.id,label:m.name}))}/><Sel label="Team" value={f.currentTeam} onChange={e=>set("currentTeam",e.target.value)} options={teams.map(t=>({value:t.id,label:t.name}))}/></div>
+    <Inp label="Owner" value={f.currentOwner} onChange={e=>set("currentOwner",e.target.value)}/>
+    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:6}}><Btn variant="secondary" onClick={onCancel}>Cancel</Btn><Btn onClick={()=>onSave(f)} disabled={!f.title.trim()}><Save size={13}/>Save</Btn></div>
+  </div>;
+}
+
+function SCForm({ticket:tk,statuses,teams,cfg,hs,sla,onSave,onCancel}){
+  const wSts=statuses.filter(s=>s.workflows?.includes(tk.workflow));
+  const[f,sF]=useState({statusId:wSts[0]?.id||"",timestamp:new Date().toISOString().slice(0,16),owner:tk.currentOwner||"",team:tk.currentTeam||"",note:""});
+  const set=(k,v)=>sF(p=>({...p,[k]:v}));const sel=statuses.find(s=>s.id===f.statusId);
+  const lTs=tk.history?.[tk.history.length-1]?.timestamp;const tsErr=lTs&&new Date(f.timestamp)<new Date(lTs);
+  const grp={svm:[],client:[],engineering:[]};wSts.forEach(s=>{if(grp[s.side])grp[s.side].push(s);});
+  return <div style={{display:"flex",flexDirection:"column",gap:12}}>
+    <div style={{padding:10,background:"#f0f9ff",borderRadius:8,fontSize:12,color:"#1e40af"}}>Current elapsed: <b>{fDur(sla.totalMin)}</b> · Timer {tk.history?.[tk.history.length-1]?.side==="client"?"PAUSED ⏸":"RUNNING ▶"}</div>
+    <div style={{display:"flex",flexDirection:"column",gap:3}}><label style={{fontSize:11,fontWeight:600,color:"#64748b"}}>New Status *</label><select value={f.statusId} onChange={e=>set("statusId",e.target.value)} style={{padding:"7px 11px",borderRadius:7,border:"1px solid #e2e8f0",fontSize:13}}><optgroup label="🔵 SVM (Timer Runs)">{grp.svm.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</optgroup><optgroup label="🟡 Engineering (Timer Runs)">{grp.engineering.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</optgroup><optgroup label="🟣 Client (Timer Paused)">{grp.client.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</optgroup></select>{sel&&<div style={{fontSize:11,marginTop:2}}>Timer will <b>{sel.side==="client"?"PAUSE ⏸":"RUN ▶"}</b> — <SBdg side={sel.side}/></div>}</div>
+    <div><Inp label="Date & Time *" type="datetime-local" value={f.timestamp} onChange={e=>set("timestamp",e.target.value)}/>{tsErr&&<span style={{fontSize:11,color:"#dc2626",fontWeight:600}}>Cannot be before last change ({fDT(lTs)})</span>}</div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><Inp label="Owner" value={f.owner} onChange={e=>set("owner",e.target.value)}/><Sel label="Team" value={f.team} onChange={e=>set("team",e.target.value)} options={teams.map(t=>({value:t.id,label:t.name}))}/></div>
+    <Inp label="Note" value={f.note} onChange={e=>set("note",e.target.value)} placeholder="Optional"/>
+    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:6}}><Btn variant="secondary" onClick={onCancel}>Cancel</Btn><Btn onClick={()=>onSave({id:uid(),statusId:f.statusId,statusName:sel?.name||"",side:sel?.side||"svm",owner:f.owner,team:f.team,timestamp:new Date(f.timestamp).toISOString(),note:f.note})} disabled={tsErr}><Save size={13}/>Save</Btn></div>
+  </div>;
+}
+
+// ─── ESCALATION PANEL ──────────────────────────────────────────
+function EscPanel({tickets,sevs,teams,cfg,hs,onSel}){
+  return <div>
+    <div style={{marginBottom:18}}><h1 style={{fontSize:22,fontWeight:800,margin:0}}>Escalations</h1><p style={{color:"#64748b",fontSize:13,margin:"3px 0 0"}}>{tickets.length} escalated</p></div>
+    {tickets.length===0?<Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No escalated tickets. Looking good.</Card>:
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>{tickets.map(t=>{const sv=sevs.find(s=>s.id===t.severity),tm=teams.find(x=>x.id===t.currentTeam),lE=t.escalationHistory?.[t.escalationHistory.length-1];
+      return <Card key={t.id} onClick={()=>onSel(t.id)} style={{cursor:"pointer",padding:14,borderLeft:"4px solid #f59e0b"}}><div style={{display:"flex",alignItems:"center",gap:12}}><div style={{minWidth:90}}><div style={{fontWeight:800,fontSize:13}}>{t.ticketNo}</div><Bdg bg={sv?.color+"22"} color={sv?.color}>{sv?.name}</Bdg></div><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{t.title}</div><div style={{fontSize:11,color:"#64748b",marginTop:2}}>Owner: <b>{t.currentOwner}</b> · Team: <b>{tm?.name||"—"}</b>{lE&&<span> · {fDT(lE.timestamp)}</span>}</div></div><TTmr ticket={t} severities={sevs} config={cfg} holidaySet={hs}/><ChevronRight size={16} color="#94a3b8"/></div></Card>;})}</div>}
+  </div>;
+}
+
+// ─── SLA REPORT ────────────────────────────────────────────────
+function Report({tickets,sevs,teams,modules,cfg,hs,onSel}){
+  const[fS,setFS]=useState("");const[fB,setFB]=useState("");const[dF,setDF]=useState("");const[dT,setDT]=useState("");
+  const[search,setSearch]=useState("");const[pg,setPg]=useState(1);const[sort,setSort]=useState({key:"closed",dir:"desc"});
+  const enr=useMemo(()=>tickets.map(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg,ov=br?sla.totalMin-tg:0,lv=bLvl(sla.totalMin,tg);const mO=Object.entries(sla.perOwner).sort((a,b)=>b[1]-a[1])[0];const mS=Object.entries(sla.perSide).filter(([s])=>s!=="client").sort((a,b)=>b[1]-a[1])[0];return{...t,sla,sv,tg,br,ov,lv,mO,mS};}),[tickets,sevs,cfg,hs]);
+  const filt=useMemo(()=>enr.filter(t=>{if(search&&!t.ticketNo.toLowerCase().includes(search.toLowerCase())&&!t.title.toLowerCase().includes(search.toLowerCase()))return false;if(fS&&t.severity!==fS)return false;if(fB==="breached"&&!t.br)return false;if(fB==="met"&&t.br)return false;if(dF&&t.closedAt<dF)return false;if(dT&&t.closedAt>dT+"T23:59:59")return false;return true;}),[enr,fS,fB,dF,dT,search]);
+  const srt=useMemo(()=>[...filt].sort((a,b)=>{const d=sort.dir==="asc"?1:-1;if(sort.key==="ticket")return a.ticketNo.localeCompare(b.ticketNo)*d;if(sort.key==="severity")return((a.sv?.resolutionHours||999)-(b.sv?.resolutionHours||999))*d;if(sort.key==="elapsed")return(a.sla.totalMin-b.sla.totalMin)*d;if(sort.key==="target")return(a.tg-b.tg)*d;if(sort.key==="over")return(a.ov-b.ov)*d;if(sort.key==="closed")return((new Date(a.closedAt||0))-(new Date(b.closedAt||0)))*d;if(sort.key==="owner")return(a.currentOwner||"").localeCompare(b.currentOwner||"")*d;return 0;}),[filt,sort]);
+  const pgd=srt.slice((pg-1)*PGS,pg*PGS);useEffect(()=>setPg(1),[search,fS,fB,dF,dT,sort]);const bC=filt.filter(t=>t.br).length;
+  const hExp=()=>{const rows=srt.map(t=>{const tm=teams.find(x=>x.id===t.currentTeam),md=modules.find(x=>x.id===t.module);return{"Ticket No":t.ticketNo,Title:t.title,Severity:t.sv?.name||"",Module:md?.name||"",Team:tm?.name||"",Owner:t.currentOwner,Created:fDT(t.createdAt),Closed:fDT(t.closedAt),"SLA Target hrs":t.sv?.resolutionHours||"","Elapsed hrs":+(t.sla.totalMin/60).toFixed(2),"SVM hrs":+(t.sla.svmMin/60).toFixed(2),"Engg hrs":+(t.sla.engMin/60).toFixed(2),"Client hrs":+(t.sla.clientMin/60).toFixed(2),Breached:t.br?"Yes":"No","Overdue hrs":t.br?+(t.ov/60).toFixed(2):"","Top Holder":t.mO?`${t.mO[0]} (${fDur(t.mO[1])})`:"","Breach Side":t.br?(t.mS?t.mS[0]:""):"N/A"};});const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"SLA Report");ws["!cols"]=Object.keys(rows[0]||{}).map(k=>({wch:Math.max(k.length,14)}));XLSX.writeFile(wb,`SLA_Report_${dYMD(new Date())}.xlsx`);};
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+      <div><h1 style={{fontSize:22,fontWeight:800,margin:0}}>SLA Report</h1><p style={{color:"#64748b",fontSize:13,margin:"3px 0 0"}}>{filt.length} closed · {bC} breached</p></div>
+      <Btn onClick={hExp} disabled={!filt.length}><Download size={14}/>Export Excel</Btn>
+    </div>
+    <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"flex-end"}}>
+      <div style={{position:"relative",minWidth:160}}><Search size={15} style={{position:"absolute",left:10,top:9,color:"#94a3b8"}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..." style={{width:"100%",padding:"7px 11px 7px 34px",borderRadius:7,border:"1px solid #e2e8f0",fontSize:13,outline:"none",boxSizing:"border-box"}}/></div>
+      <Sel value={fS} onChange={e=>setFS(e.target.value)} options={[{value:"",label:"All Severities"},...sevs.map(s=>({value:s.id,label:s.name}))]}/>
+      <Sel value={fB} onChange={e=>setFB(e.target.value)} options={[{value:"",label:"All"},{value:"breached",label:"Breached"},{value:"met",label:"Met"}]}/>
+      <DR from={dF} to={dT} setFrom={setDF} setTo={setDT}/>
+    </div>
+    {!pgd.length?<Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No closed tickets matching filters.</Card>:
+    <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,fontSize:12}}>
+      <thead><tr><STH label="Ticket" sk="ticket" sort={sort} setSort={setSort}/><STH label="Severity" sk="severity" sort={sort} setSort={setSort}/><STH label="Owner" sk="owner" sort={sort} setSort={setSort}/><STH label="Elapsed" sk="elapsed" sort={sort} setSort={setSort}/><STH label="Target" sk="target" sort={sort} setSort={setSort}/><th style={{textAlign:"left",padding:"9px 12px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontWeight:700,color:"#475569",fontSize:11}}>Status</th><th style={{textAlign:"left",padding:"9px 12px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontWeight:700,color:"#475569",fontSize:11}}>SVM</th><th style={{textAlign:"left",padding:"9px 12px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontWeight:700,color:"#475569",fontSize:11}}>Engg</th><th style={{textAlign:"left",padding:"9px 12px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontWeight:700,color:"#475569",fontSize:11}}>Client</th><STH label="Over" sk="over" sort={sort} setSort={setSort}/><th style={{textAlign:"left",padding:"9px 12px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontWeight:700,color:"#475569",fontSize:11}}>Holder</th><STH label="Closed" sk="closed" sort={sort} setSort={setSort}/></tr></thead>
+      <tbody>{pgd.map(t=>{const b=bBadge(t.lv);return <tr key={t.id} onClick={()=>onSel(t.id)} style={{cursor:"pointer"}}>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}><div style={{fontWeight:700}}>{t.ticketNo}</div><div style={{fontSize:11,color:"#64748b",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</div></td>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}><Bdg bg={t.sv?.color+"22"} color={t.sv?.color}>{t.sv?.name}</Bdg></td>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontWeight:600}}>{t.currentOwner}</td>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontWeight:700,fontVariantNumeric:"tabular-nums"}}>{fDur(t.sla.totalMin)}</td>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",color:"#64748b"}}>{fDur(t.tg)}</td>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}><Bdg bg={b.bg} color={b.tx}>{b.lb}</Bdg></td>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontVariantNumeric:"tabular-nums"}}>{fDur(t.sla.svmMin)}</td>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontVariantNumeric:"tabular-nums"}}>{fDur(t.sla.engMin)}</td>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",color:"#8b5cf6",fontVariantNumeric:"tabular-nums"}}>{fDur(t.sla.clientMin)}</td>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontWeight:700,color:t.br?"#dc2626":"#10b981"}}>{t.br?fDur(t.ov):"—"}</td>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontSize:11}}>{t.mO?t.mO[0]:"—"}<div style={{color:"#94a3b8"}}>{t.mO?fDur(t.mO[1]):""}</div></td>
+        <td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontSize:11}}>{fDate(t.closedAt)}</td>
+      </tr>;})}</tbody></table></div>}
+    <Pgn total={filt.length} page={pg} setPage={setPg}/>
+  </div>;
+}
+
+// ─── ANALYTICS ─────────────────────────────────────────────────
+function Analytics({tickets,active,closed,sevs,teams,modules,cfg,hs,sub,setSub}){
+  const tabs=[{id:"owner",label:"Owner Performance",icon:Users},{id:"team",label:"Team Performance",icon:Users},{id:"module",label:"Module Analysis",icon:LayoutDashboard},{id:"trends",label:"Trends",icon:TrendingUp},{id:"side",label:"Side Analysis",icon:BarChart3}];
+  const at=sub||"owner";
+  return <div>
+    <h1 style={{fontSize:22,fontWeight:800,margin:"0 0 16px"}}>Analytics</h1>
+    <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>{tabs.map(t=><button key={t.id} onClick={()=>setSub(t.id)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 14px",borderRadius:7,border:"1px solid "+(at===t.id?"#4f46e5":"#e2e8f0"),background:at===t.id?"#4f46e520":"#fff",color:at===t.id?"#4f46e5":"#475569",fontWeight:600,fontSize:12,cursor:"pointer"}}><t.icon size={14}/>{t.label}</button>)}</div>
+    {at==="owner"&&<OwnerA closed={closed} sevs={sevs} cfg={cfg} hs={hs}/>}
+    {at==="team"&&<TeamA closed={closed} teams={teams} sevs={sevs} cfg={cfg} hs={hs}/>}
+    {at==="module"&&<ModA closed={closed} modules={modules} sevs={sevs} cfg={cfg} hs={hs}/>}
+    {at==="trends"&&<TrendA closed={closed} sevs={sevs} cfg={cfg} hs={hs}/>}
+    {at==="side"&&<SideA closed={closed} sevs={sevs} cfg={cfg} hs={hs}/>}
+  </div>;
+}
+
+function OwnerA({closed,sevs,cfg,hs}){
+  const data=useMemo(()=>{const m={};closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg;Object.entries(sla.perOwner).forEach(([o,mn])=>{if(!m[o])m[o]={owner:o,totalMin:0,tickets:0,breached:0};m[o].totalMin+=mn;m[o].tickets++;if(br)m[o].breached++;});});return Object.values(m).map(o=>({...o,avgMin:o.tickets?Math.round(o.totalMin/o.tickets):0,bPct:o.tickets?Math.round((o.breached/o.tickets)*100):0})).sort((a,b)=>b.totalMin-a.totalMin);},[closed,sevs,cfg,hs]);
+  if(!data.length)return <Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No data. Close tickets first.</Card>;
+  const cd=data.slice(0,12).map(d=>({name:d.owner,total:Math.round(d.totalMin/60),avg:Math.round(d.avgMin/60)}));
+  return <div>
+    <Card style={{marginBottom:16}}><h3 style={{margin:"0 0 12px",fontSize:14,fontWeight:700}}>Hours per Owner</h3><ResponsiveContainer width="100%" height={250}><BarChart data={cd}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/><XAxis dataKey="name" fontSize={11}/><YAxis fontSize={11}/><Tooltip/><Bar dataKey="total" fill="#4f46e5" name="Total hrs" radius={[3,3,0,0]}/><Bar dataKey="avg" fill="#10b981" name="Avg/ticket" radius={[3,3,0,0]}/></BarChart></ResponsiveContainer></Card>
+    <Card><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["Owner","Tickets","Total","Avg/Ticket","Breached","Breach %","Rating"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 12px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontSize:11,fontWeight:700,color:"#475569"}}>{h}</th>)}</tr></thead><tbody>{data.map(d=><tr key={d.owner}><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontWeight:600}}>{d.owner}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}>{d.tickets}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontVariantNumeric:"tabular-nums"}}>{fDur(d.totalMin)}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontVariantNumeric:"tabular-nums"}}>{fDur(d.avgMin)}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",color:d.breached?"#dc2626":"#10b981",fontWeight:600}}>{d.breached}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}><Bdg bg={d.bPct>30?"#fee2e2":d.bPct>15?"#fef3c7":"#dcfce7"} color={d.bPct>30?"#991b1b":d.bPct>15?"#92400e":"#166534"}>{d.bPct}%</Bdg></td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}><Bdg bg={d.bPct<=15?"#dcfce7":"#fee2e2"} color={d.bPct<=15?"#166534":"#991b1b"}>{d.bPct<=15?"Efficient":d.bPct<=30?"Average":"Needs Work"}</Bdg></td></tr>)}</tbody></table></Card>
+  </div>;
+}
+
+function TeamA({closed,teams,sevs,cfg,hs}){
+  const data=useMemo(()=>{const m={};closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg,ti=t.currentTeam||"?",tm=teams.find(x=>x.id===ti);if(!m[ti])m[ti]={team:tm?.name||"Unknown",totalMin:0,tickets:0,breached:0};m[ti].totalMin+=sla.totalMin;m[ti].tickets++;if(br)m[ti].breached++;});return Object.values(m).map(d=>({...d,avgMin:d.tickets?Math.round(d.totalMin/d.tickets):0,comp:d.tickets?Math.round(((d.tickets-d.breached)/d.tickets)*100):100})).sort((a,b)=>b.tickets-a.tickets);},[closed,teams,sevs,cfg,hs]);
+  if(!data.length)return <Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No data.</Card>;
+  const cd=data.map(d=>({name:d.team,compliance:d.comp}));
+  return <div>
+    <Card style={{marginBottom:16}}><h3 style={{margin:"0 0 12px",fontSize:14,fontWeight:700}}>Team Compliance %</h3><ResponsiveContainer width="100%" height={220}><BarChart data={cd}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/><XAxis dataKey="name" fontSize={11}/><YAxis fontSize={11} domain={[0,100]}/><Tooltip/><Bar dataKey="compliance" fill="#10b981" name="Compliance %" radius={[3,3,0,0]}/></BarChart></ResponsiveContainer></Card>
+    <Card><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["Team","Tickets","Total","Avg/Ticket","Breached","Compliance"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 12px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontSize:11,fontWeight:700,color:"#475569"}}>{h}</th>)}</tr></thead><tbody>{data.map(d=><tr key={d.team}><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontWeight:600}}>{d.team}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}>{d.tickets}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontVariantNumeric:"tabular-nums"}}>{fDur(d.totalMin)}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontVariantNumeric:"tabular-nums"}}>{fDur(d.avgMin)}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontWeight:600,color:d.breached?"#dc2626":"#10b981"}}>{d.breached}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}><Bdg bg={d.comp>=85?"#dcfce7":d.comp>=70?"#fef3c7":"#fee2e2"} color={d.comp>=85?"#166534":d.comp>=70?"#92400e":"#991b1b"}>{d.comp}%</Bdg></td></tr>)}</tbody></table></Card>
+  </div>;
+}
+
+function ModA({closed,modules,sevs,cfg,hs}){
+  const data=useMemo(()=>{const m={};closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg,mi=t.module||"?",mod=modules.find(x=>x.id===mi);if(!m[mi])m[mi]={module:mod?.name||"Unknown",tickets:0,breached:0,totalMin:0};m[mi].tickets++;m[mi].totalMin+=sla.totalMin;if(br)m[mi].breached++;});return Object.values(m).map(d=>({...d,avgMin:d.tickets?Math.round(d.totalMin/d.tickets):0,bPct:d.tickets?Math.round((d.breached/d.tickets)*100):0})).sort((a,b)=>b.bPct-a.bPct);},[closed,modules,sevs,cfg,hs]);
+  if(!data.length)return <Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No data.</Card>;
+  return <Card><h3 style={{margin:"0 0 14px",fontSize:14,fontWeight:700}}>Module Breach Analysis</h3><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["Module","Tickets","Breached","Breach %","Avg Resolution"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 12px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontSize:11,fontWeight:700,color:"#475569"}}>{h}</th>)}</tr></thead><tbody>{data.map(d=><tr key={d.module}><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontWeight:600}}>{d.module}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}>{d.tickets}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontWeight:700,color:d.breached?"#dc2626":"#10b981"}}>{d.breached}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:80,height:8,background:"#f1f5f9",borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",background:d.bPct>30?"#dc2626":d.bPct>15?"#f59e0b":"#10b981",width:`${d.bPct}%`,borderRadius:4}}/></div><span style={{fontSize:12,fontWeight:600}}>{d.bPct}%</span></div></td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontVariantNumeric:"tabular-nums"}}>{fDur(d.avgMin)}</td></tr>)}</tbody></table></Card>;
+}
+
+function TrendA({closed,sevs,cfg,hs}){
+  const[mode,setMode]=useState("weekly");
+  const data=useMemo(()=>{const m={};closed.forEach(t=>{const k=mode==="weekly"?getWk(t.closedAt):getMo(t.closedAt),sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg;if(!m[k])m[k]={period:k,total:0,breached:0,met:0};m[k].total++;if(br)m[k].breached++;else m[k].met++;});return Object.values(m).sort((a,b)=>a.period.localeCompare(b.period)).map(d=>({...d,comp:d.total?Math.round((d.met/d.total)*100):100}));},[closed,sevs,cfg,hs,mode]);
+  if(!data.length)return <Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No trend data.</Card>;
+  return <div>
+    <div style={{display:"flex",gap:8,marginBottom:16}}><Btn small variant={mode==="weekly"?"primary":"secondary"} onClick={()=>setMode("weekly")}>Weekly</Btn><Btn small variant={mode==="monthly"?"primary":"secondary"} onClick={()=>setMode("monthly")}>Monthly</Btn></div>
+    <Card style={{marginBottom:16}}><h3 style={{margin:"0 0 12px",fontSize:14,fontWeight:700}}>SLA Compliance Trend</h3><ResponsiveContainer width="100%" height={250}><AreaChart data={data}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/><XAxis dataKey="period" fontSize={11}/><YAxis fontSize={11} domain={[0,100]}/><Tooltip/><Area type="monotone" dataKey="comp" stroke="#10b981" fill="#10b98133" name="Compliance %"/></AreaChart></ResponsiveContainer></Card>
+    <Card><h3 style={{margin:"0 0 12px",fontSize:14,fontWeight:700}}>Met vs Breached</h3><ResponsiveContainer width="100%" height={220}><BarChart data={data}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/><XAxis dataKey="period" fontSize={11}/><YAxis fontSize={11} allowDecimals={false}/><Tooltip/><Bar dataKey="met" stackId="a" fill="#10b981" name="Met"/><Bar dataKey="breached" stackId="a" fill="#dc2626" name="Breached" radius={[3,3,0,0]}/></BarChart></ResponsiveContainer></Card>
+  </div>;
+}
+
+function SideA({closed,sevs,cfg,hs}){
+  const data=useMemo(()=>{let sT=0,eT=0,cT=0,sB=0,eB=0;closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg;sT+=sla.svmMin;eT+=sla.engMin;cT+=sla.clientMin;if(br){if(sla.svmMin>=sla.engMin)sB++;else eB++;}});return{sT,eT,cT,sB,eB,total:closed.length};},[closed,sevs,cfg,hs]);
+  const pie=[{name:"SVM",value:Math.round(data.sT/60),color:SC.svm},{name:"Engineering",value:Math.round(data.eT/60),color:SC.engineering},{name:"Client",value:Math.round(data.cT/60),color:SC.client}].filter(x=>x.value>0);
+  return <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+    <Card><h3 style={{margin:"0 0 12px",fontSize:14,fontWeight:700}}>Time Distribution (hours)</h3>{pie.length?<ResponsiveContainer width="100%" height={250}><PieChart><Pie data={pie} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({name,value})=>`${name}: ${value}h`}>{pie.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Tooltip/></PieChart></ResponsiveContainer>:<div style={{textAlign:"center",padding:40,color:"#94a3b8"}}>No data</div>}</Card>
+    <Card><h3 style={{margin:"0 0 12px",fontSize:14,fontWeight:700}}>Breach Responsibility</h3><p style={{fontSize:13,color:"#64748b",margin:"0 0 12px"}}>Which side held the ticket longest when SLA breached?</p>{[{l:"SVM caused breach",c:data.sB,cl:SC.svm},{l:"Engineering caused breach",c:data.eB,cl:SC.engineering}].map(s=><div key={s.l} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><div style={{width:12,height:12,borderRadius:3,background:s.cl}}/><span style={{flex:1,fontSize:13}}>{s.l}</span><span style={{fontSize:18,fontWeight:800}}>{s.c}</span></div>)}<div style={{marginTop:12,padding:10,background:"#f8fafc",borderRadius:8,fontSize:12,color:"#64748b"}}>Total closed: {data.total} · Total breached: {data.sB+data.eB}</div></Card>
+  </div>;
+}
+
+// ─── SETTINGS ──────────────────────────────────────────────────
+function Sett({cfg,saveCfg,holidays,saveHol,statuses,saveSts,teams,saveTms,modules,saveMods,sevs,saveSevs,wfs,saveWfs,allData,onRestore,sub,setSub}){
+  const tabs=[{id:"hours",label:"Business Hours",icon:Clock},{id:"holidays",label:"Holidays",icon:Calendar},{id:"workflows",label:"Workflows",icon:RefreshCw},{id:"statuses",label:"Statuses",icon:BarChart3},{id:"teams",label:"Teams",icon:Users},{id:"modules",label:"Modules",icon:LayoutDashboard},{id:"severity",label:"Severity/SLA",icon:Shield},{id:"backup",label:"Backup & Restore",icon:Database}];
+  const at=sub||"hours";
+  return <div>
+    <h1 style={{fontSize:22,fontWeight:800,margin:"0 0 16px"}}>Settings</h1>
+    <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>{tabs.map(t=><button key={t.id} onClick={()=>setSub(t.id)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 14px",borderRadius:7,border:"1px solid "+(at===t.id?"#4f46e5":"#e2e8f0"),background:at===t.id?"#4f46e520":"#fff",color:at===t.id?"#4f46e5":"#475569",fontWeight:600,fontSize:12,cursor:"pointer"}}><t.icon size={14}/>{t.label}</button>)}</div>
+    {at==="hours"&&<BizH cfg={cfg} saveCfg={saveCfg}/>}
+    {at==="holidays"&&<HolS holidays={holidays} saveHol={saveHol}/>}
+    {at==="workflows"&&<ListS items={wfs} save={saveWfs} label="Workflow"/>}
+    {at==="statuses"&&<StsS statuses={statuses} saveSts={saveSts} wfs={wfs}/>}
+    {at==="teams"&&<ListS items={teams} save={saveTms} label="Team"/>}
+    {at==="modules"&&<ListS items={modules} save={saveMods} label="Module"/>}
+    {at==="severity"&&<SevS sevs={sevs} saveSevs={saveSevs}/>}
+    {at==="backup"&&<BkpS allData={allData} onRestore={onRestore}/>}
+  </div>;
+}
+
+function BizH({cfg,saveCfg}){
+  const[f,sF]=useState({...cfg});const days=[{v:0,l:"Sun"},{v:1,l:"Mon"},{v:2,l:"Tue"},{v:3,l:"Wed"},{v:4,l:"Thu"},{v:5,l:"Fri"},{v:6,l:"Sat"}];
+  const tog=d=>sF(p=>({...p,workDays:p.workDays.includes(d)?p.workDays.filter(x=>x!==d):[...p.workDays,d].sort()}));
+  return <Card>
+    <h3 style={{margin:"0 0 14px",fontWeight:700,fontSize:15}}>Business Hours</h3>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}><Inp label="Start" type="time" value={f.businessStart} onChange={e=>sF(p=>({...p,businessStart:e.target.value}))}/><Inp label="End" type="time" value={f.businessEnd} onChange={e=>sF(p=>({...p,businessEnd:e.target.value}))}/></div>
+    <label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:6}}>Working Days</label>
+    <div style={{display:"flex",gap:5,marginBottom:14}}>{days.map(d=><button key={d.v} onClick={()=>tog(d.v)} style={{width:44,height:34,borderRadius:7,border:"1px solid "+(f.workDays.includes(d.v)?"#4f46e5":"#e2e8f0"),background:f.workDays.includes(d.v)?"#4f46e5":"#fff",color:f.workDays.includes(d.v)?"#fff":"#475569",fontWeight:600,fontSize:12,cursor:"pointer"}}>{d.l}</button>)}</div>
+    <div style={{padding:"8px 12px",background:"#f0fdf4",borderRadius:7,fontSize:12,color:"#166534",marginBottom:14}}>Timezone: Asia/Kolkata (IST)</div>
+    <Btn onClick={()=>saveCfg(f)}><Save size={13}/>Save</Btn>
+  </Card>;
+}
+
+function HolS({holidays,saveHol}){
+  const[d,setD]=useState("");const[n,setN]=useState("");
+  const add=()=>{if(!d||!n.trim())return;saveHol([...holidays,{id:uid(),date:d,name:n.trim()}].sort((a,b)=>a.date.localeCompare(b.date)));setD("");setN("");};
+  return <Card>
+    <h3 style={{margin:"0 0 14px",fontWeight:700,fontSize:15}}>Holiday Calendar</h3>
+    <div style={{display:"flex",gap:8,marginBottom:14,alignItems:"flex-end"}}><Inp label="Date" type="date" value={d} onChange={e=>setD(e.target.value)}/><Inp label="Name" value={n} onChange={e=>setN(e.target.value)} placeholder="Holiday name"/><Btn onClick={add} disabled={!d||!n.trim()}><Plus size={13}/>Add</Btn></div>
+    {!holidays.length?<p style={{color:"#94a3b8",fontSize:13}}>No holidays.</p>:holidays.map(h=><div key={h.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 10px",background:"#f8fafc",borderRadius:7,marginBottom:3}}><span style={{fontWeight:700,fontSize:12,minWidth:95,fontVariantNumeric:"tabular-nums"}}>{h.date}</span><span style={{flex:1,fontSize:13}}>{h.name}</span><button onClick={()=>saveHol(holidays.filter(x=>x.id!==h.id))} style={{background:"none",border:"none",cursor:"pointer",color:"#ef4444",padding:3}}><Trash2 size={13}/></button></div>)}
+  </Card>;
+}
+
+function ListS({items,save,label}){
+  const[n,setN]=useState("");
+  const add=()=>{if(!n.trim())return;save([...items,{id:uid(),name:n.trim()}]);setN("");};
+  return <Card>
+    <h3 style={{margin:"0 0 14px",fontWeight:700,fontSize:15}}>{label} Master</h3>
+    <div style={{display:"flex",gap:8,marginBottom:14,alignItems:"flex-end"}}><Inp label={`${label} Name`} value={n} onChange={e=>setN(e.target.value)} placeholder={`New ${label.toLowerCase()}`}/><Btn onClick={add} disabled={!n.trim()}><Plus size={13}/>Add</Btn></div>
+    {items.map(it=><div key={it.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 10px",background:"#f8fafc",borderRadius:7,marginBottom:3}}><span style={{flex:1,fontSize:13,fontWeight:500}}>{it.name}</span><button onClick={()=>save(items.filter(x=>x.id!==it.id))} style={{background:"none",border:"none",cursor:"pointer",color:"#ef4444",padding:3}}><Trash2 size={13}/></button></div>)}
+  </Card>;
+}
+
+function StsS({statuses,saveSts,wfs}){
+  const[show,setShow]=useState(false);const[eId,setEId]=useState(null);const[fW,setFW]=useState("");const[fSd,setFSd]=useState("");
+  const filt=statuses.filter(s=>{if(fW&&!s.workflows?.includes(fW))return false;if(fSd&&s.side!==fSd)return false;return true;});
+  const grp={svm:[],client:[],engineering:[]};filt.forEach(s=>{if(grp[s.side])grp[s.side].push(s);});
+  const saveSt=u=>{if(eId)saveSts(statuses.map(s=>s.id===eId?u:s));else saveSts([...statuses,{...u,id:uid()}]);setShow(false);setEId(null);};
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Sel value={fW} onChange={e=>setFW(e.target.value)} options={[{value:"",label:"All Workflows"},...wfs.map(w=>({value:w.id,label:w.name}))]}/>
+      <Sel value={fSd} onChange={e=>setFSd(e.target.value)} options={[{value:"",label:"All Sides"},{value:"svm",label:"SVM"},{value:"client",label:"Client"},{value:"engineering",label:"Engineering"}]}/></div>
+      <Btn onClick={()=>{setEId(null);setShow(true);}}><Plus size={13}/>Add</Btn>
+    </div>
+    {["svm","client","engineering"].map(side=>grp[side].length>0&&<Card key={side} style={{marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}><div style={{width:11,height:11,borderRadius:3,background:SC[side]}}/><h3 style={{margin:0,fontSize:14,fontWeight:700}}>{SL[side]} <span style={{fontWeight:400,color:"#94a3b8"}}>({side==="client"?"Paused":"Runs"})</span></h3><Bdg bg={SC[side]+"22"} color={SC[side]}>{grp[side].length}</Bdg></div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{grp[side].map(s=><div key={s.id} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 9px",background:SC[side]+"0c",border:"1px solid "+SC[side]+"33",borderRadius:5,fontSize:12}}>{s.name}<button onClick={()=>{setEId(s.id);setShow(true);}} style={{background:"none",border:"none",cursor:"pointer",color:"#64748b",padding:1}}><Edit2 size={11}/></button><button onClick={()=>saveSts(statuses.filter(x=>x.id!==s.id))} style={{background:"none",border:"none",cursor:"pointer",color:"#ef4444",padding:1}}><Trash2 size={11}/></button></div>)}</div>
+    </Card>)}
+    <Modal open={show} onClose={()=>{setShow(false);setEId(null);}} title={eId?"Edit Status":"Add Status"}><StForm initial={eId?statuses.find(s=>s.id===eId):null} wfs={wfs} onSave={saveSt} onCancel={()=>{setShow(false);setEId(null);}}/></Modal>
+  </div>;
+}
+
+function StForm({initial,wfs,onSave,onCancel}){
+  const[f,sF]=useState(initial||{name:"",side:"svm",workflows:wfs.map(w=>w.id)});
+  const set=(k,v)=>sF(p=>({...p,[k]:v}));const togW=w=>sF(p=>({...p,workflows:p.workflows?.includes(w)?p.workflows.filter(x=>x!==w):[...(p.workflows||[]),w]}));
+  return <div style={{display:"flex",flexDirection:"column",gap:12}}>
+    <Inp label="Status Name" value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Development in Progress"/>
+    <Sel label="Side" value={f.side} onChange={e=>set("side",e.target.value)} options={[{value:"svm",label:"SVM — Timer Runs"},{value:"engineering",label:"Engineering — Timer Runs"},{value:"client",label:"Client — Timer Paused"}]}/>
+    <div><label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:5}}>Workflows</label><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{wfs.map(w=><button key={w.id} onClick={()=>togW(w.id)} style={{padding:"4px 10px",borderRadius:5,fontSize:12,fontWeight:600,cursor:"pointer",border:"1px solid "+(f.workflows?.includes(w.id)?"#4f46e5":"#e2e8f0"),background:f.workflows?.includes(w.id)?"#4f46e520":"#fff",color:f.workflows?.includes(w.id)?"#4f46e5":"#475569"}}>{w.name}</button>)}</div></div>
+    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:6}}><Btn variant="secondary" onClick={onCancel}>Cancel</Btn><Btn onClick={()=>onSave(f)} disabled={!f.name.trim()}><Save size={13}/>Save</Btn></div>
+  </div>;
+}
+
+function SevS({sevs,saveSevs}){
+  const[eId,setEId]=useState(null);const[f,sF]=useState({});
+  const sE=s=>{setEId(s.id);sF({...s});};
+  const sv=()=>{saveSevs(sevs.map(s=>s.id===eId?{...f,resolutionHours:Number(f.resolutionHours)}:s));setEId(null);};
+  return <Card>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><h3 style={{margin:0,fontWeight:700,fontSize:15}}>Severity / SLA</h3><Btn small onClick={()=>{const s={id:uid(),name:"New",resolutionHours:24,color:"#6b7280"};saveSevs([...sevs,s]);sE(s);}}><Plus size={13}/>Add</Btn></div>
+    <div style={{padding:"8px 12px",background:"#f0f9ff",borderRadius:7,fontSize:12,color:"#1e40af",marginBottom:12}}>Resolution SLA only. Timer counts biz hours on SVM/Engineering side.</div>
+    <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["Severity","Resolution (hrs)","Color",""].map(h=><th key={h} style={{textAlign:"left",padding:"7px 10px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontSize:11,fontWeight:700,color:"#475569"}}>{h}</th>)}</tr></thead>
+    <tbody>{sevs.map(s=><tr key={s.id}>
+      <td style={{padding:"7px 10px",borderBottom:"1px solid #f1f5f9"}}>{eId===s.id?<input value={f.name} onChange={e=>sF(p=>({...p,name:e.target.value}))} style={{padding:"3px 7px",border:"1px solid #e2e8f0",borderRadius:5,fontSize:13}}/>:<Bdg bg={s.color+"22"} color={s.color}>{s.name}</Bdg>}</td>
+      <td style={{padding:"7px 10px",borderBottom:"1px solid #f1f5f9"}}>{eId===s.id?<input type="number" value={f.resolutionHours} onChange={e=>sF(p=>({...p,resolutionHours:e.target.value}))} style={{padding:"3px 7px",border:"1px solid #e2e8f0",borderRadius:5,fontSize:13,width:70}}/>:<b>{s.resolutionHours}h</b>}</td>
+      <td style={{padding:"7px 10px",borderBottom:"1px solid #f1f5f9"}}>{eId===s.id?<input type="color" value={f.color} onChange={e=>sF(p=>({...p,color:e.target.value}))} style={{width:36,height:26,border:"none"}}/>:<div style={{width:22,height:22,borderRadius:5,background:s.color}}/>}</td>
+      <td style={{padding:"7px 10px",borderBottom:"1px solid #f1f5f9",textAlign:"right"}}>{eId===s.id?<div style={{display:"flex",gap:5,justifyContent:"flex-end"}}><Btn small onClick={sv}><Save size={11}/></Btn><Btn small variant="secondary" onClick={()=>setEId(null)}>Cancel</Btn></div>:<div style={{display:"flex",gap:5,justifyContent:"flex-end"}}><Btn small variant="ghost" onClick={()=>sE(s)}><Edit2 size={11}/></Btn><Btn small variant="danger" onClick={()=>saveSevs(sevs.filter(x=>x.id!==s.id))}><Trash2 size={11}/></Btn></div>}</td>
+    </tr>)}</tbody></table>
+  </Card>;
+}
+
+function BkpS({allData,onRestore}){
+  const[msg,setMsg]=useState("");
+  const[syncing,setSyncing]=useState(false);
+  const hasCloud=!!window.APPS_SCRIPT_URL;
+  const hExp=()=>{const j=JSON.stringify(allData,null,2),b=new Blob([j],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=`SLA_Backup_${dYMD(new Date())}.json`;a.click();URL.revokeObjectURL(u);setMsg("Backup exported!");setTimeout(()=>setMsg(""),3000);};
+  const hImp=e=>{const file=e.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=ev=>{try{onRestore(JSON.parse(ev.target.result));setMsg("Restored! Refresh to see all changes.");setTimeout(()=>setMsg(""),5000);}catch(err){setMsg("Error: "+err.message);}};r.readAsText(file);};
+  const hPush=async()=>{setSyncing(true);try{const r=await window.storage.syncToCloud();setMsg(r.error?"Sync failed: "+r.error:"Pushed "+r.saved+" items to Google Sheets!");}catch(e){setMsg("Error: "+e.message);}setSyncing(false);setTimeout(()=>setMsg(""),4000);};
+  const hPull=async()=>{setSyncing(true);try{const r=await window.storage.syncFromCloud();setMsg(r.error?"Sync failed: "+r.error:"Pulled "+r.synced+" items from Google Sheets! Refresh the page.");}catch(e){setMsg("Error: "+e.message);}setSyncing(false);setTimeout(()=>setMsg(""),5000);};
+  return <Card>
+    <h3 style={{margin:"0 0 14px",fontWeight:700,fontSize:15}}>Backup & Restore</h3>
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      {hasCloud&&<div style={{padding:14,background:"#f0fdf4",borderRadius:8,border:"1px solid #bbf7d0"}}>
+        <div style={{fontSize:13,fontWeight:700,color:"#166534",marginBottom:8,display:"flex",alignItems:"center",gap:6}}><Database size={15}/>Google Sheets Sync</div>
+        <p style={{fontSize:12,color:"#166534",margin:"0 0 10px"}}>Connected to Google Sheets. Data auto-saves on every change. Use these buttons for manual full sync.</p>
+        <div style={{display:"flex",gap:8}}><Btn small variant="success" onClick={hPush} disabled={syncing}><Upload size={12}/>{syncing?"Syncing...":"Push All → Sheets"}</Btn><Btn small variant="outline" onClick={hPull} disabled={syncing}><Download size={12}/>{syncing?"Syncing...":"Pull All ← Sheets"}</Btn></div>
+      </div>}
+      {!hasCloud&&<div style={{padding:14,background:"#fefce8",borderRadius:8,border:"1px solid #fde68a"}}>
+        <div style={{fontSize:13,fontWeight:600,color:"#92400e",marginBottom:4}}>Google Sheets not connected</div>
+        <p style={{fontSize:12,color:"#a16207",margin:0}}>Data is stored in browser localStorage only. To enable cloud sync, add your Apps Script URL to the HTML file. See the setup guide.</p>
+      </div>}
+      <div><div style={{fontSize:13,fontWeight:600,marginBottom:6}}>Export Backup (JSON)</div><p style={{fontSize:12,color:"#64748b",margin:"0 0 8px"}}>Download all data as JSON file.</p><Btn onClick={hExp}><Download size={13}/>Export</Btn></div>
+      <div style={{borderTop:"1px solid #e2e8f0",paddingTop:16}}><div style={{fontSize:13,fontWeight:600,marginBottom:6}}>Restore from Backup</div><p style={{fontSize:12,color:"#64748b",margin:"0 0 8px"}}>Upload a JSON backup. Overwrites existing data.</p><input type="file" accept=".json" onChange={hImp} style={{fontSize:13}}/></div>
+      {msg&&<div style={{padding:"8px 12px",background:msg.includes("Error")||msg.includes("failed")?"#fee2e2":"#dcfce7",borderRadius:7,fontSize:13,color:msg.includes("Error")||msg.includes("failed")?"#991b1b":"#166534",fontWeight:600}}>{msg}</div>}
+    </div>
+  </Card>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
