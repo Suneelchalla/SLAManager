@@ -190,12 +190,13 @@ const RotateCcw=p=><Iv {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 
 const Bell=p=><Iv {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></Iv>;
 
 /* ─── CONSTANTS ─── */
-const SK={config:"sla:config",holidays:"sla:holidays",statuses:"sla:statuses",teams:"sla:teams",modules:"sla:modules",severities:"sla:severities",tickets:"sla:tickets",workflows:"sla:workflows"};
+const SK={config:"sla:config",holidays:"sla:holidays",statuses:"sla:statuses",teams:"sla:teams",modules:"sla:modules",severities:"sla:severities",tickets:"sla:tickets",workflows:"sla:workflows",clients:"sla:clients"};
 const DEF_CONFIG={businessStart:"00:00",businessEnd:"23:59",workDays:[1,2,3,4,5]};
 const DEF_SEVS=[{id:"sev1",name:"Showstopper",resolutionHours:4,color:"#dc2626"},{id:"sev2",name:"Critical",resolutionHours:48,color:"#ea580c"},{id:"sev3",name:"High",resolutionHours:32,color:"#d97706"},{id:"sev4",name:"Medium",resolutionHours:48,color:"#2563eb"},{id:"sev5",name:"Low",resolutionHours:90,color:"#6b7280"}];
 const DEF_WF=[{id:"wf1",name:"Incident (SWIRE)"},{id:"wf2",name:"Service Request (Phoenix)"},{id:"wf3",name:"SW Incident"},{id:"wf4",name:"SW Service Request"}];
 const DEF_MODS=["Commercial","Container Maintenance & Repair","Cost","Electronic Data Interface","Equipment Management System","Export Documentation & Invoice","Finance","Import Documentation & Invoice","Import Receipt & FPA Reports","Non-Functional Requirements","Operations","Vessel Schedule System"].map((n,i)=>({id:`mod${i+1}`,name:n}));
 const DEF_TEAMS=[{id:"t1",name:"SVM Support"},{id:"t2",name:"SVM Engineering"},{id:"t3",name:"DB Admin"},{id:"t4",name:"Client"},{id:"t5",name:"QA"}];
+const DEF_CLIENTS=[{id:"cl1",name:"Default (Standard SLA)",slaOverrides:{}}];
 const DEF_ST=[{id:"s1",name:"Open",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s2",name:"Acknowledged",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s3",name:"Analysis & Study",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s4",name:"Technical Analysis",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s5",name:"On-Hold",side:"client",workflows:["wf1","wf2","wf3","wf4"]},{id:"s6",name:"Waiting for Customer",side:"client",workflows:["wf1","wf2","wf3","wf4"]},{id:"s7",name:"Assign HD (WFC)",side:"client",workflows:["wf1","wf2"]},{id:"s8",name:"Development in Progress",side:"engineering",workflows:["wf1","wf3"]},{id:"s9",name:"Testing in Progress",side:"engineering",workflows:["wf1","wf3"]},{id:"s10",name:"Release Kit Prep",side:"engineering",workflows:["wf1","wf3"]},{id:"s11",name:"Workaround Fix",side:"svm",workflows:["wf1","wf3"]},{id:"s12",name:"Impact Study",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s13",name:"Project Lead Approval",side:"svm",workflows:["wf1","wf3"]},{id:"s14",name:"DB Admin Approval",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s15",name:"Release Kit Preparation",side:"svm",workflows:["wf1","wf3"]},{id:"s16",name:"Client Release Approval",side:"client",workflows:["wf1","wf3"]},{id:"s17",name:"SVM DB Script Release In-Progress",side:"svm",workflows:["wf1","wf3"]},{id:"s18",name:"Inform to Client",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s19",name:"Release Move to Production",side:"svm",workflows:["wf1","wf3"]},{id:"s20",name:"Delivered",side:"svm",workflows:["wf1","wf3"]},{id:"s21",name:"Closed",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s22",name:"Re-Open Review",side:"svm",workflows:["wf1","wf3"]},{id:"s23",name:"Resolved",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s24",name:"Resolved with Clarification",side:"svm",workflows:["wf1","wf3"]},{id:"s25",name:"Clarify",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s26",name:"System Defect",side:"engineering",workflows:["wf1","wf3"]},{id:"s27",name:"Share Findings",side:"svm",workflows:["wf1","wf3"]},{id:"s28",name:"Published",side:"svm",workflows:["wf1","wf3"]},{id:"s29",name:"Release Plan UAT or Hot Fix",side:"engineering",workflows:["wf1","wf3"]},{id:"s30",name:"SVM Hotfix Testing",side:"engineering",workflows:["wf1","wf3"]},{id:"s31",name:"Assign HD (UAT)",side:"svm",workflows:["wf1","wf3"]},{id:"s32",name:"Client Hotfix Testing",side:"client",workflows:["wf1","wf3"]},{id:"s33",name:"POC Release Approval",side:"svm",workflows:["wf1","wf3"]},{id:"s34",name:"Release Plan Production",side:"svm",workflows:["wf1","wf3"]},{id:"s35",name:"Client Approval Prod",side:"client",workflows:["wf1","wf3"]},{id:"s36",name:"Client Release Approval Prod",side:"client",workflows:["wf1","wf3"]},{id:"s37",name:"Assign to SVM Deployment Team",side:"svm",workflows:["wf1","wf3"]},{id:"s38",name:"Inform Client",side:"svm",workflows:["wf1","wf2","wf3","wf4"]},{id:"s39",name:"DB Script Request",side:"svm",workflows:["wf2","wf4"]},{id:"s40",name:"Doubt Clarification",side:"svm",workflows:["wf2","wf4"]},{id:"s41",name:"Team Lead Review & Approval",side:"svm",workflows:["wf2","wf4"]},{id:"s42",name:"Release Plan",side:"svm",workflows:["wf2","wf4"]},{id:"s43",name:"Client Approval DB Script",side:"client",workflows:["wf2","wf4"]},{id:"s44",name:"Client Approved DB Script",side:"client",workflows:["wf2","wf4"]},{id:"s45",name:"Client Rejected DB Script",side:"client",workflows:["wf2","wf4"]},{id:"s46",name:"Release in Progress",side:"svm",workflows:["wf2","wf4"]},{id:"s47",name:"DB Script Delivered",side:"svm",workflows:["wf2","wf4"]},{id:"s48",name:"Script Delivered",side:"svm",workflows:["wf2","wf4"]},{id:"s49",name:"Invoice Yet to Raise",side:"svm",workflows:["wf2","wf4"]},{id:"s50",name:"Invoice Issued",side:"svm",workflows:["wf2","wf4"]},{id:"s51",name:"DB Script Rejected",side:"svm",workflows:["wf2","wf4"]},{id:"s52",name:"SYS/User Configuration",side:"svm",workflows:["wf2","wf4"]},{id:"s53",name:"Get Confirmation",side:"client",workflows:["wf2","wf4"]},{id:"s54",name:"Confirmation",side:"client",workflows:["wf2","wf4"]},{id:"s55",name:"Completed",side:"svm",workflows:["wf2","wf4"]},{id:"s56",name:"User Request",side:"client",workflows:["wf2","wf4"]},{id:"s57",name:"Review",side:"svm",workflows:["wf2","wf4"]},{id:"s58",name:"Clarification Dev",side:"engineering",workflows:["wf1","wf3"]},{id:"s59",name:"Assign HD Clarification",side:"svm",workflows:["wf1","wf3"]},{id:"s60",name:"FOR HD ACTION",side:"svm",workflows:["wf3","wf4"]},{id:"s61",name:"Findings",side:"engineering",workflows:["wf3"]}];
 const SC={svm:"#3b82f6",client:"#8b5cf6",engineering:"#f59e0b"};
 const SL={svm:"SVM",client:"Client",engineering:"Engineering"};
@@ -214,6 +215,7 @@ function getBizMin(sI,eI,cfg,hs){const s=new Date(sI),e=new Date(eI);if(s>=e)ret
 function calcSLA(tk,cfg,hs){if(!tk.history?.length)return{totalMin:0,clientMin:0,svmMin:0,engMin:0,perOwner:{},perSide:{svm:0,client:0,engineering:0}};const now=new Date();let tM=0,cM=0,sM=0,eM=0;const pO={},pS={svm:0,client:0,engineering:0};for(let i=0;i<tk.history.length;i++){const en=tk.history[i],sd=en.side||"svm",sS=new Date(en.timestamp);const paused=sd==="client"||en.statusName==="Closed";let sE;if(i<tk.history.length-1)sE=new Date(tk.history[i+1].timestamp);else if(tk.closedAt)sE=new Date(tk.closedAt);else sE=now;const mn=getBizMin(sS,sE,cfg,hs);if(paused)cM+=mn;else if(sd==="engineering"){eM+=mn;tM+=mn;}else{sM+=mn;tM+=mn;}pS[paused?"client":sd]=(pS[paused?"client":sd]||0)+mn;const ow=en.owner||"Unassigned";if(!paused)pO[ow]=(pO[ow]||0)+mn;}return{totalMin:tM,clientMin:cM,svmMin:sM,engMin:eM,perOwner:pO,perSide:pS};}
 function bLvl(el,tg){if(tg<=0)return"safe";const p=el/tg;if(p>=1)return"breached";if(p>=.9)return"danger";if(p>=.75)return"warning";return"safe";}
 function bBadge(l){return{safe:{bg:"#dcfce7",tx:"#166534",lb:"On Track"},warning:{bg:"#fef3c7",tx:"#92400e",lb:"At Risk"},danger:{bg:"#fee2e2",tx:"#991b1b",lb:"Critical"},breached:{bg:"#7f1d1d",tx:"#fff",lb:"Breached"}}[l]||{bg:"#dcfce7",tx:"#166534",lb:"On Track"};}
+function getTgt(tk,sevs,clients){const sv=sevs.find(s=>s.id===tk.severity);const cl=clients?.find(c=>c.id===tk.client);const hrs=cl?.slaOverrides?.[tk.severity]??sv?.resolutionHours??0;return hrs*60;}
 function getWk(d){const dt=new Date(d),j=new Date(dt.getFullYear(),0,1),w=Math.ceil(((dt-j)/864e5+j.getDay()+1)/7);return`${dt.getFullYear()}-W${String(w).padStart(2,"0")}`;}
 function getMo(d){const dt=new Date(d);return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`;}
 function useStore(key,def){const[data,setData]=useState(def);const[ld,setLd]=useState(false);useEffect(()=>{(async()=>{try{const r=await window.storage.get(key);if(r&&r.value)setData(JSON.parse(r.value));}catch(e){}setLd(true);})();},[key]);const save=useCallback(async v=>{setData(v);try{await window.storage.set(key,JSON.stringify(v));}catch(e){console.error(e);}},[key]);return[data,save,ld];}
@@ -230,7 +232,7 @@ function KPI({icon:Ic,label,value,sub,accent}){return <Card style={{display:"fle
 function Pgn({total,page,setPage}){const pages=Math.ceil(total/PGS);if(pages<=1)return null;return <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4,marginTop:16}}><Btn small variant="secondary" disabled={page===1} onClick={()=>setPage(page-1)}>Prev</Btn>{Array.from({length:Math.min(pages,7)},(_,i)=>{let p;if(pages<=7)p=i+1;else if(page<=4)p=i+1;else if(page>=pages-3)p=pages-6+i;else p=page-3+i;return <button key={p} onClick={()=>setPage(p)} style={{width:32,height:32,borderRadius:6,border:"none",fontWeight:p===page?700:500,fontSize:13,cursor:"pointer",background:p===page?"#4f46e5":"transparent",color:p===page?"#fff":"#64748b"}}>{p}</button>;})}<Btn small variant="secondary" disabled={page===pages} onClick={()=>setPage(page+1)}>Next</Btn><span style={{fontSize:12,color:"#94a3b8",marginLeft:8}}>{total} items</span></div>;}
 function STH({label,sk,sort,setSort}){const a=sort.key===sk;return <th onClick={()=>setSort({key:sk,dir:a&&sort.dir==="asc"?"desc":"asc"})} style={{textAlign:"left",padding:"9px 12px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontWeight:700,color:"#475569",fontSize:11,whiteSpace:"nowrap",cursor:"pointer",userSelect:"none"}}><span style={{display:"inline-flex",alignItems:"center",gap:4}}>{label}{a?(sort.dir==="asc"?<ArrowUp size={12}/>:<ArrowDown size={12}/>):<ArrowUpDown size={12} style={{opacity:.3}}/>}</span></th>;}
 function DR({from,to,setFrom,setTo}){return <div style={{display:"flex",gap:8,alignItems:"flex-end"}}><Inp label="From" type="date" value={from} onChange={e=>setFrom(e.target.value)} style={{width:140}}/><Inp label="To" type="date" value={to} onChange={e=>setTo(e.target.value)} style={{width:140}}/>{(from||to)&&<Btn small variant="ghost" onClick={()=>{setFrom("");setTo("");}}>Clear</Btn>}</div>;}
-function TTmr({ticket:tk,severities:svs,config:cfg,holidaySet:hs}){const[now,setNow]=useState(Date.now());useEffect(()=>{if(tk.closedAt)return;const iv=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(iv);},[tk.closedAt]);const sla=useMemo(()=>calcSLA(tk,cfg,hs),[tk,cfg,hs,now]);const sv=svs.find(s=>s.id===tk.severity),tg=(sv?.resolutionHours||0)*60,rm=tg-sla.totalMin,lv=bLvl(sla.totalMin,tg),b=bBadge(lv);const lH=tk.history?.[tk.history.length-1];const paused=lH?.side==="client"||lH?.statusName==="Closed"||lH?.statusName==="On-Hold";return <div style={{display:"flex",alignItems:"center",gap:6,flexDirection:"column"}}><div style={{display:"flex",alignItems:"center",gap:6}}><Bdg bg={b.bg} color={b.tx}>{b.lb}</Bdg><span style={{fontSize:12,fontWeight:700,color:lv==="breached"?"#dc2626":"#0f172a",fontVariantNumeric:"tabular-nums"}}>{lv==="breached"?`+${fDur(Math.abs(rm))}`:`${fDur(rm)} left`}</span></div><span style={{fontSize:10,fontWeight:700,color:paused?"#8b5cf6":"#10b981",display:"flex",alignItems:"center",gap:3}}><span style={{width:6,height:6,borderRadius:3,background:paused?"#8b5cf6":"#10b981",display:"inline-block",animation:paused?"none":"pulse 1.5s infinite"}}></span>{paused?"⏸ Paused":"▶ Running"}</span></div>;}
+function TTmr({ticket:tk,severities:svs,config:cfg,holidaySet:hs,clients}){const[now,setNow]=useState(Date.now());useEffect(()=>{if(tk.closedAt)return;const iv=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(iv);},[tk.closedAt]);const sla=useMemo(()=>calcSLA(tk,cfg,hs),[tk,cfg,hs,now]);const tg=getTgt(tk,svs,clients),rm=tg-sla.totalMin,lv=bLvl(sla.totalMin,tg),b=bBadge(lv);const lH=tk.history?.[tk.history.length-1];const paused=lH?.side==="client"||lH?.statusName==="Closed"||lH?.statusName==="On-Hold";return <div style={{display:"flex",alignItems:"center",gap:6,flexDirection:"column"}}><div style={{display:"flex",alignItems:"center",gap:6}}><Bdg bg={b.bg} color={b.tx}>{b.lb}</Bdg><span style={{fontSize:12,fontWeight:700,color:lv==="breached"?"#dc2626":"#0f172a",fontVariantNumeric:"tabular-nums"}}>{lv==="breached"?`+${fDur(Math.abs(rm))}`:`${fDur(rm)} left`}</span></div><span style={{fontSize:10,fontWeight:700,color:paused?"#8b5cf6":"#10b981",display:"flex",alignItems:"center",gap:3}}><span style={{width:6,height:6,borderRadius:3,background:paused?"#8b5cf6":"#10b981",display:"inline-block",animation:paused?"none":"pulse 1.5s infinite"}}></span>{paused?"⏸ Paused":"▶ Running"}</span></div>;}
 function Cfm({open,onClose,onConfirm,title,message}){return <Modal open={open} onClose={onClose} title={title||"Confirm"}><p style={{fontSize:14,color:"#334155",margin:"0 0 16px"}}>{message}</p><div style={{display:"flex",justifyContent:"flex-end",gap:8}}><Btn variant="secondary" onClick={onClose}>Cancel</Btn><Btn variant="danger" onClick={()=>{onConfirm();onClose();}}>Confirm</Btn></div></Modal>;}
 // ─── MAIN APP ──────────────────────────────────────────────────
 function App(){
@@ -248,11 +250,12 @@ function App(){
   const[sevs,saveSevs,c6]=useStore(SK.severities,DEF_SEVS);
   const[tickets,saveTix,c7]=useStore(SK.tickets,[]);
   const[wfs,saveWfs,c8]=useStore(SK.workflows,DEF_WF);
-  const rdy=c1&&c2&&c3&&c4&&c5&&c6&&c7&&c8;
+  const[clients,saveClients,c9]=useStore(SK.clients,DEF_CLIENTS);
+  const rdy=c1&&c2&&c3&&c4&&c5&&c6&&c7&&c8&&c9;
   const hs=useMemo(()=>new Set(holidays.map(h=>h.date)),[holidays]);
   const active=useMemo(()=>tickets.filter(t=>!t.closedAt),[tickets]);
   const closed=useMemo(()=>tickets.filter(t=>t.closedAt),[tickets]);
-  const alerts=useMemo(()=>active.filter(t=>{const sla=calcSLA(t,cfg,hs);const sv=sevs.find(s=>s.id===t.severity);return bLvl(sla.totalMin,(sv?.resolutionHours||0)*60)==="danger"||bLvl(sla.totalMin,(sv?.resolutionHours||0)*60)==="breached";}),[active,cfg,hs,sevs]);
+  const alerts=useMemo(()=>active.filter(t=>{const sla=calcSLA(t,cfg,hs);const tg=getTgt(t,sevs,clients);return bLvl(sla.totalMin,tg)==="danger"||bLvl(sla.totalMin,tg)==="breached";}),[active,cfg,hs,sevs,clients]);
   const escTix=useMemo(()=>active.filter(t=>t.isEscalated),[active]);
   const nav=(p,s)=>{setPage(p);setSub(s||null);setSelTk(null);};
   const updTk=(u,msg)=>{saveTix(tickets.map(x=>x.id===u.id?u:x));if(msg)notify(msg);};
@@ -260,15 +263,15 @@ function App(){
   if(!rdy)return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:"system-ui"}}><div style={{textAlign:"center"}}><RefreshCw size={32} style={{color:"#4f46e5",animation:"spin 1s linear infinite"}}/><p style={{marginTop:12,color:"#64748b"}}>Loading...</p><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div></div>;
   const sW=sideOpen?220:0;
   const ni=[{id:"tickets",icon:Ticket,label:"Active Tickets",count:active.length},{id:"dashboard",icon:LayoutDashboard,label:"Dashboard"},{id:"escalations",icon:Flag,label:"Escalations",count:escTix.length},{id:"report",icon:FileText,label:"SLA Report",count:closed.length},{id:"analytics",icon:TrendingUp,label:"Analytics"},{id:"settings",icon:Settings,label:"Settings"}];
-  const dp={statuses,teams,severities:sevs,modules,workflows:wfs,config:cfg,holidaySet:hs,onUpdate:updTk,onDelete:delTk,notify};
+  const dp={statuses,teams,severities:sevs,modules,workflows:wfs,config:cfg,holidaySet:hs,clients,onUpdate:updTk,onDelete:delTk,notify};
   let content;
   if(selTk){const t=tickets.find(x=>x.id===selTk);content=t?<TkDetail ticket={t} {...dp} allTickets={tickets} onBack={()=>setSelTk(null)}/>:<p>Not found</p>;}
-  else if(page==="dashboard")content=<Dash tickets={tickets} active={active} closed={closed} sevs={sevs} teams={teams} modules={modules} cfg={cfg} hs={hs} onNav={nav} onSel={setSelTk}/>;
-  else if(page==="tickets")content=<TkList tickets={active} sevs={sevs} teams={teams} modules={modules} wfs={wfs} statuses={statuses} cfg={cfg} hs={hs} onSel={setSelTk} allTix={tickets} onCreate={t=>{saveTix([...tickets,t]);notify("Ticket "+t.ticketNo+" created");}} onBulk={arr=>{saveTix([...tickets,...arr]);notify(arr.length+" tickets imported");}}/>;
-  else if(page==="escalations")content=<EscPanel tickets={escTix} sevs={sevs} teams={teams} cfg={cfg} hs={hs} onSel={setSelTk}/>;
-  else if(page==="report")content=<Report tickets={closed} sevs={sevs} teams={teams} modules={modules} wfs={wfs} cfg={cfg} hs={hs} onSel={setSelTk} notify={notify}/>;
-  else if(page==="analytics")content=<Analytics tickets={tickets} active={active} closed={closed} sevs={sevs} teams={teams} modules={modules} cfg={cfg} hs={hs} sub={sub} setSub={setSub}/>;
-  else if(page==="settings")content=<Sett cfg={cfg} saveCfg={v=>{saveCfg(v);notify("Settings saved");}} holidays={holidays} saveHol={v=>{saveHol(v);notify("Holidays updated");}} statuses={statuses} saveSts={v=>{saveSts(v);notify("Statuses updated");}} teams={teams} saveTms={v=>{saveTms(v);notify("Teams updated");}} modules={modules} saveMods={v=>{saveMods(v);notify("Modules updated");}} sevs={sevs} saveSevs={v=>{saveSevs(v);notify("Severity updated");}} wfs={wfs} saveWfs={v=>{saveWfs(v);notify("Workflows updated");}} allData={{config:cfg,holidays,statuses,teams,modules,severities:sevs,tickets,workflows:wfs}} onRestore={async d=>{if(d.config)await saveCfg(d.config);if(d.holidays)await saveHol(d.holidays);if(d.statuses)await saveSts(d.statuses);if(d.teams)await saveTms(d.teams);if(d.modules)await saveMods(d.modules);if(d.severities)await saveSevs(d.severities);if(d.tickets)await saveTix(d.tickets);if(d.workflows)await saveWfs(d.workflows);notify("Data restored");}} sub={sub} setSub={setSub} notify={notify}/>;
+  else if(page==="dashboard")content=<Dash tickets={tickets} active={active} closed={closed} sevs={sevs} teams={teams} modules={modules} cfg={cfg} hs={hs} clients={clients} onNav={nav} onSel={setSelTk}/>;
+  else if(page==="tickets")content=<TkList tickets={active} sevs={sevs} teams={teams} modules={modules} wfs={wfs} statuses={statuses} cfg={cfg} hs={hs} clients={clients} onSel={setSelTk} allTix={tickets} onCreate={t=>{saveTix([...tickets,t]);notify("Ticket "+t.ticketNo+" created");}} onBulk={arr=>{saveTix([...tickets,...arr]);notify(arr.length+" tickets imported");}}/>;
+  else if(page==="escalations")content=<EscPanel tickets={escTix} sevs={sevs} teams={teams} cfg={cfg} hs={hs} clients={clients} onSel={setSelTk}/>;
+  else if(page==="report")content=<Report tickets={closed} sevs={sevs} teams={teams} modules={modules} wfs={wfs} cfg={cfg} hs={hs} clients={clients} onSel={setSelTk} notify={notify}/>;
+  else if(page==="analytics")content=<Analytics tickets={tickets} active={active} closed={closed} sevs={sevs} teams={teams} modules={modules} cfg={cfg} hs={hs} clients={clients} sub={sub} setSub={setSub}/>;
+  else if(page==="settings")content=<Sett cfg={cfg} saveCfg={v=>{saveCfg(v);notify("Settings saved");}} holidays={holidays} saveHol={v=>{saveHol(v);notify("Holidays updated");}} statuses={statuses} saveSts={v=>{saveSts(v);notify("Statuses updated");}} teams={teams} saveTms={v=>{saveTms(v);notify("Teams updated");}} modules={modules} saveMods={v=>{saveMods(v);notify("Modules updated");}} sevs={sevs} saveSevs={v=>{saveSevs(v);notify("Severity updated");}} wfs={wfs} saveWfs={v=>{saveWfs(v);notify("Workflows updated");}} clients={clients} saveClients={v=>{saveClients(v);notify("Clients updated");}} allData={{config:cfg,holidays,statuses,teams,modules,severities:sevs,tickets,workflows:wfs,clients}} onRestore={async d=>{if(d.config)await saveCfg(d.config);if(d.holidays)await saveHol(d.holidays);if(d.statuses)await saveSts(d.statuses);if(d.teams)await saveTms(d.teams);if(d.modules)await saveMods(d.modules);if(d.severities)await saveSevs(d.severities);if(d.tickets)await saveTix(d.tickets);if(d.workflows)await saveWfs(d.workflows);if(d.clients)await saveClients(d.clients);notify("Data restored");}} sub={sub} setSub={setSub} notify={notify}/>;
   return <div style={{fontFamily:"'Inter',system-ui,sans-serif",background:"#f4f6fa",minHeight:"100vh"}}>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
     <div style={{width:220,background:"#0f172a",color:"#e2e8f0",display:"flex",flexDirection:"column",height:"100vh",position:"fixed",left:0,top:0,zIndex:200,transform:sideOpen?"translateX(0)":"translateX(-220px)",transition:"transform .2s"}}>
@@ -291,14 +294,14 @@ function App(){
 }
 
 // ─── DASHBOARD ─────────────────────────────────────────────────
-function Dash({tickets,active,closed,sevs,teams,modules,cfg,hs,onNav,onSel}){
+function Dash({tickets,active,closed,sevs,teams,modules,cfg,hs,clients,onNav,onSel}){
   const[now,setNow]=useState(Date.now());const[dF,setDF]=useState("");const[dT,setDT]=useState("");
   useEffect(()=>{const iv=setInterval(()=>setNow(Date.now()),60000);return()=>clearInterval(iv);},[]);
   const fClosed=useMemo(()=>closed.filter(t=>{if(dF&&t.closedAt<dF)return false;if(dT&&t.closedAt>dT+"T23:59:59")return false;return true;}),[closed,dF,dT]);
-  const stats=useMemo(()=>{let br=0,ar=0,ok=0,esc=0;active.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),lv=bLvl(sla.totalMin,(sv?.resolutionHours||0)*60);if(lv==="breached")br++;else if(lv==="danger"||lv==="warning")ar++;else ok++;if(t.isEscalated)esc++;});let cb=0;let totalResMin=0;fClosed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity);if(sla.totalMin>(sv?.resolutionHours||0)*60)cb++;totalResMin+=sla.totalMin;});const avgRes=fClosed.length?Math.round(totalResMin/fClosed.length):0;return{br,ar,ok,esc,cb,comp:fClosed.length?Math.round(((fClosed.length-cb)/fClosed.length)*100):100,avgRes};},[active,fClosed,sevs,cfg,hs,now]);
+  const stats=useMemo(()=>{let br=0,ar=0,ok=0,esc=0;active.forEach(t=>{const sla=calcSLA(t,cfg,hs),lv=bLvl(sla.totalMin,getTgt(t,sevs,clients));if(lv==="breached")br++;else if(lv==="danger"||lv==="warning")ar++;else ok++;if(t.isEscalated)esc++;});let cb=0;let totalResMin=0;fClosed.forEach(t=>{const sla=calcSLA(t,cfg,hs),tg=getTgt(t,sevs,clients);if(sla.totalMin>tg)cb++;totalResMin+=sla.totalMin;});const avgRes=fClosed.length?Math.round(totalResMin/fClosed.length):0;return{br,ar,ok,esc,cb,comp:fClosed.length?Math.round(((fClosed.length-cb)/fClosed.length)*100):100,avgRes};},[active,fClosed,sevs,cfg,hs,now]);
   const sevCh=useMemo(()=>sevs.map(s=>({name:s.name,active:active.filter(t=>t.severity===s.id).length,closed:fClosed.filter(t=>t.severity===s.id).length})),[active,fClosed,sevs]);
   const sideCh=useMemo(()=>{let sv=0,cl=0,en=0;active.forEach(t=>{const l=t.history?.[t.history.length-1];if(l?.side==="client")cl++;else if(l?.side==="engineering")en++;else sv++;});return[{name:"SVM",value:sv,color:SC.svm},{name:"Client",value:cl,color:SC.client},{name:"Engineering",value:en,color:SC.engineering}].filter(x=>x.value>0);},[active]);
-  const brList=useMemo(()=>active.filter(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity);return sla.totalMin>(sv?.resolutionHours||0)*60;}).sort((a,b)=>{const sa=calcSLA(a,cfg,hs),sb=calcSLA(b,cfg,hs),svA=sevs.find(s=>s.id===a.severity),svB=sevs.find(s=>s.id===b.severity);return(sb.totalMin-(svB?.resolutionHours||0)*60)-(sa.totalMin-(svA?.resolutionHours||0)*60);}).slice(0,8),[active,sevs,cfg,hs,now]);
+  const brList=useMemo(()=>active.filter(t=>{const sla=calcSLA(t,cfg,hs),tg=getTgt(t,sevs,clients);return sla.totalMin>tg;}).sort((a,b)=>{const sa=calcSLA(a,cfg,hs),sb=calcSLA(b,cfg,hs),tgA=getTgt(a,sevs,clients),tgB=getTgt(b,sevs,clients);return(sb.totalMin-tgB)-(sa.totalMin-tgA);}).slice(0,8),[active,sevs,cfg,hs,now]);
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:12}}>
       <div><h1 style={{fontSize:22,fontWeight:800,color:"#0f172a",margin:0}}>Dashboard</h1><p style={{color:"#64748b",fontSize:13,margin:"3px 0 0"}}>SLA overview</p></div>
@@ -317,16 +320,16 @@ function Dash({tickets,active,closed,sevs,teams,modules,cfg,hs,onNav,onSel}){
       <Card><h3 style={{margin:"0 0 14px",fontSize:14,fontWeight:700}}>By Severity</h3><ResponsiveContainer width="100%" height={200}><BarChart data={sevCh}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/><XAxis dataKey="name" fontSize={11}/><YAxis fontSize={11} allowDecimals={false}/><Tooltip/><Bar dataKey="active" fill="#4f46e5" name="Active" radius={[3,3,0,0]}/><Bar dataKey="closed" fill="#10b981" name="Closed" radius={[3,3,0,0]}/></BarChart></ResponsiveContainer></Card>
       <Card><h3 style={{margin:"0 0 14px",fontSize:14,fontWeight:700}}>Active by Side</h3>{sideCh.length?<ResponsiveContainer width="100%" height={200}><PieChart><Pie data={sideCh} cx="50%" cy="50%" outerRadius={75} dataKey="value" label={({name,value})=>`${name}: ${value}`}>{sideCh.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Tooltip/></PieChart></ResponsiveContainer>:<div style={{textAlign:"center",padding:40,color:"#94a3b8"}}>No active tickets</div>}</Card>
     </div>
-    {brList.length>0&&<Card style={{borderLeft:"4px solid #dc2626",marginBottom:16}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700,color:"#dc2626",display:"flex",alignItems:"center",gap:7}}><AlertTriangle size={16}/>Breached — Needs Attention</h3><div style={{display:"flex",flexDirection:"column",gap:6}}>{brList.map(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),ov=sla.totalMin-(sv?.resolutionHours||0)*60;return <div key={t.id} onClick={()=>onSel(t.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 11px",background:"#fef2f2",borderRadius:7,cursor:"pointer",fontSize:13}}><b style={{minWidth:90}}>{t.ticketNo}</b><span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</span><Bdg bg={sv?.color+"22"} color={sv?.color}>{sv?.name}</Bdg>{t.isEscalated&&<Bdg bg="#fef3c7" color="#92400e">Esc</Bdg>}<span style={{fontWeight:700,color:"#dc2626",fontSize:12}}>+{fDur(ov)}</span></div>;})}</div></Card>}
+    {brList.length>0&&<Card style={{borderLeft:"4px solid #dc2626",marginBottom:16}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700,color:"#dc2626",display:"flex",alignItems:"center",gap:7}}><AlertTriangle size={16}/>Breached — Needs Attention</h3><div style={{display:"flex",flexDirection:"column",gap:6}}>{brList.map(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),ov=sla.totalMin-getTgt(t,sevs,clients);return <div key={t.id} onClick={()=>onSel(t.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 11px",background:"#fef2f2",borderRadius:7,cursor:"pointer",fontSize:13}}><b style={{minWidth:90}}>{t.ticketNo}</b><span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</span><Bdg bg={sv?.color+"22"} color={sv?.color}>{sv?.name}</Bdg>{t.isEscalated&&<Bdg bg="#fef3c7" color="#92400e">Esc</Bdg>}<span style={{fontWeight:700,color:"#dc2626",fontSize:12}}>+{fDur(ov)}</span></div>;})}</div></Card>}
   </div>;
 }
 
 // ─── TICKETS LIST ──────────────────────────────────────────────
-function TkList({tickets,sevs,teams,modules,wfs,statuses,cfg,hs,onSel,allTix,onCreate,onBulk}){
+function TkList({tickets,sevs,teams,modules,wfs,statuses,cfg,hs,clients,onSel,allTix,onCreate,onBulk}){
   const[showC,setShowC]=useState(false);const[showI,setShowI]=useState(false);
   const[search,setSearch]=useState("");const[fS,setFS]=useState("");const[fT,setFT]=useState("");const[fW,setFW]=useState("");const[fM,setFM]=useState("");
   const[pg,setPg]=useState(1);const[sort,setSort]=useState({key:"urgency",dir:"asc"});
-  const enr=useMemo(()=>tickets.map(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60;return{...t,sla,sv,tg,rm:tg-sla.totalMin,lv:bLvl(sla.totalMin,tg)};}),[tickets,sevs,cfg,hs]);
+  const enr=useMemo(()=>tickets.map(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=getTgt(t,sevs,clients);return{...t,sla,sv,tg,rm:tg-sla.totalMin,lv:bLvl(sla.totalMin,tg)};}),[tickets,sevs,cfg,hs]);
   const filt=useMemo(()=>enr.filter(t=>{if(search&&!t.ticketNo.toLowerCase().includes(search.toLowerCase())&&!t.title.toLowerCase().includes(search.toLowerCase())&&!(t.currentOwner||"").toLowerCase().includes(search.toLowerCase()))return false;if(fS&&t.severity!==fS)return false;if(fT&&t.currentTeam!==fT)return false;if(fW&&t.workflow!==fW)return false;if(fM&&t.module!==fM)return false;return true;}),[enr,search,fS,fT,fW,fM]);
   const srt=useMemo(()=>[...filt].sort((a,b)=>{const d=sort.dir==="asc"?1:-1;if(sort.key==="urgency")return(a.rm-b.rm)*d;if(sort.key==="ticket")return a.ticketNo.localeCompare(b.ticketNo)*d;if(sort.key==="severity")return((a.sv?.resolutionHours||999)-(b.sv?.resolutionHours||999))*d;if(sort.key==="owner")return(a.currentOwner||"").localeCompare(b.currentOwner||"")*d;if(sort.key==="elapsed")return(a.sla.totalMin-b.sla.totalMin)*d;if(sort.key==="created")return(new Date(a.createdAt)-new Date(b.createdAt))*d;return 0;}),[filt,sort]);
   const pgd=srt.slice((pg-1)*PGS,pg*PGS);
@@ -354,23 +357,28 @@ function TkList({tickets,sevs,teams,modules,wfs,statuses,cfg,hs,onSel,allTix,onC
           <div style={{height:4,background:"#e2e8f0",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",borderRadius:2,width:`${pct}%`,background:BB[t.lv]||"#10b981",transition:"width .3s"}}/></div>
           <div style={{fontSize:10,color:"#94a3b8",display:"flex",gap:8}}><span>{ageDays}d old</span><span>In status: {inCurr}</span>{(t.remarks?.length>0)&&<span>💬{t.remarks.length}</span>}</div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:8,minWidth:130,justifyContent:"flex-end"}}><TTmr ticket={t} severities={sevs} config={cfg} holidaySet={hs}/><ChevronRight size={16} color="#94a3b8"/></div>
+        <div style={{display:"flex",alignItems:"center",gap:8,minWidth:130,justifyContent:"flex-end"}}><TTmr ticket={t} severities={sevs} config={cfg} holidaySet={hs} clients={clients}/><ChevronRight size={16} color="#94a3b8"/></div>
       </Card>;})}</div>}
     <Pgn total={filt.length} page={pg} setPage={setPg}/>
-    <Modal open={showC} onClose={()=>setShowC(false)} title="Create New Ticket" wide><CrtForm statuses={statuses} teams={teams} modules={modules} sevs={sevs} wfs={wfs} allTix={allTix} onSave={t=>{onCreate(t);setShowC(false);}} onCancel={()=>setShowC(false)}/></Modal>
+    <Modal open={showC} onClose={()=>setShowC(false)} title="Create New Ticket" wide><CrtForm statuses={statuses} teams={teams} modules={modules} sevs={sevs} wfs={wfs} clients={clients} allTix={allTix} onSave={t=>{onCreate(t);setShowC(false);}} onCancel={()=>setShowC(false)}/></Modal>
     <Modal open={showI} onClose={()=>setShowI(false)} title="Bulk Import from Excel" wide><BulkImp statuses={statuses} teams={teams} modules={modules} sevs={sevs} wfs={wfs} allTix={allTix} onImport={arr=>{onBulk(arr);setShowI(false);}} onCancel={()=>setShowI(false)}/></Modal>
   </div>;
 }
 
-function CrtForm({statuses,teams,modules,sevs,wfs,allTix,onSave,onCancel}){
-  const[f,sF]=useState({ticketNo:"",title:"",desc:"",severity:sevs[0]?.id||"",module:modules[0]?.id||"",workflow:wfs[0]?.id||"",owner:"",team:teams[0]?.id||"",createdAt:new Date().toISOString().slice(0,16)});
+function CrtForm({statuses,teams,modules,sevs,wfs,clients,allTix,onSave,onCancel}){
+  const[f,sF]=useState({ticketNo:"",title:"",desc:"",severity:sevs[0]?.id||"",module:modules[0]?.id||"",workflow:wfs[0]?.id||"",owner:"",team:teams[0]?.id||"",client:clients[0]?.id||"",createdAt:new Date().toISOString().slice(0,16)});
   const set=(k,v)=>sF(p=>({...p,[k]:v}));
   const dup=allTix.some(t=>t.ticketNo.toLowerCase()===f.ticketNo.trim().toLowerCase());
-  const save=()=>{if(!f.ticketNo.trim()||!f.title.trim()||dup)return;const wSts=statuses.filter(s=>s.workflows?.includes(f.workflow));const oSt=wSts.find(s=>s.name==="Open")||wSts[0];onSave({id:uid(),ticketNo:f.ticketNo.trim(),title:f.title.trim(),description:f.desc,severity:f.severity,module:f.module,workflow:f.workflow,currentOwner:f.owner.trim(),currentTeam:f.team,createdAt:new Date(f.createdAt).toISOString(),resolvedAt:null,closedAt:null,isEscalated:false,escalationHistory:[],history:[{id:uid(),statusId:oSt?.id||"",statusName:oSt?.name||"Open",side:oSt?.side||"svm",owner:f.owner.trim(),team:f.team,timestamp:new Date(f.createdAt).toISOString(),note:"Ticket created"}]});};
+  const selCl=clients.find(c=>c.id===f.client);
+  const selSv=sevs.find(s=>s.id===f.severity);
+  const clHrs=selCl?.slaOverrides?.[f.severity];
+  const effHrs=clHrs??selSv?.resolutionHours??0;
+  const save=()=>{if(!f.ticketNo.trim()||!f.title.trim()||dup)return;const wSts=statuses.filter(s=>s.workflows?.includes(f.workflow));const oSt=wSts.find(s=>s.name==="Open")||wSts[0];onSave({id:uid(),ticketNo:f.ticketNo.trim(),title:f.title.trim(),description:f.desc,severity:f.severity,module:f.module,workflow:f.workflow,client:f.client,currentOwner:f.owner.trim(),currentTeam:f.team,createdAt:new Date(f.createdAt).toISOString(),resolvedAt:null,closedAt:null,isEscalated:false,escalationHistory:[],remarks:[],history:[{id:uid(),statusId:oSt?.id||"",statusName:oSt?.name||"Open",side:oSt?.side||"svm",owner:f.owner.trim(),team:f.team,timestamp:new Date(f.createdAt).toISOString(),note:"Ticket created"}]});};
   return <div style={{display:"flex",flexDirection:"column",gap:12}}>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><div><Inp label="Ticket No *" value={f.ticketNo} onChange={e=>set("ticketNo",e.target.value)} placeholder="e.g. SWIPHX-1234"/>{dup&&<span style={{fontSize:11,color:"#dc2626",fontWeight:600}}>Duplicate ticket number!</span>}</div><Inp label="Created" type="datetime-local" value={f.createdAt} onChange={e=>set("createdAt",e.target.value)}/></div>
     <Inp label="Title *" value={f.title} onChange={e=>set("title",e.target.value)} placeholder="Brief description"/>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><Sel label="Workflow" value={f.workflow} onChange={e=>set("workflow",e.target.value)} options={wfs.map(w=>({value:w.id,label:w.name}))}/><Sel label="Severity" value={f.severity} onChange={e=>set("severity",e.target.value)} options={sevs.map(s=>({value:s.id,label:`${s.name} (${s.resolutionHours}h)`}))}/></div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><Sel label="Client" value={f.client} onChange={e=>set("client",e.target.value)} options={clients.map(c=>({value:c.id,label:c.name}))}/><Sel label="Workflow" value={f.workflow} onChange={e=>set("workflow",e.target.value)} options={wfs.map(w=>({value:w.id,label:w.name}))}/></div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><Sel label="Severity" value={f.severity} onChange={e=>set("severity",e.target.value)} options={sevs.map(s=>({value:s.id,label:`${s.name} (${s.resolutionHours}h)`}))}/><div style={{display:"flex",flexDirection:"column",gap:3}}><label style={{fontSize:11,fontWeight:600,color:"#64748b"}}>Effective SLA Target</label><div style={{padding:"7px 11px",borderRadius:7,border:"1px solid #e2e8f0",fontSize:13,background:clHrs!=null?"#fef3c7":"#f8fafc",color:clHrs!=null?"#92400e":"#64748b",fontWeight:600}}>{effHrs}h {clHrs!=null?"(client override)":"(default)"}</div></div></div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><Sel label="Module" value={f.module} onChange={e=>set("module",e.target.value)} options={modules.map(m=>({value:m.id,label:m.name}))}/><Sel label="Team" value={f.team} onChange={e=>set("team",e.target.value)} options={teams.map(t=>({value:t.id,label:t.name}))}/></div>
     <Inp label="Owner" value={f.owner} onChange={e=>set("owner",e.target.value)} placeholder="Person name"/>
     <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:6}}><Btn variant="secondary" onClick={onCancel}>Cancel</Btn><Btn onClick={save} disabled={!f.ticketNo.trim()||!f.title.trim()||dup}><Save size={13}/>Create</Btn></div>
@@ -392,13 +400,13 @@ function BulkImp({statuses,teams,modules,sevs,wfs,allTix,onImport,onCancel}){
 }
 
 // ─── TICKET DETAIL ─────────────────────────────────────────────
-function TkDetail({ticket:tk,statuses,teams,severities:svs,modules,workflows:wfs,config:cfg,holidaySet:hs,onUpdate,onDelete,allTickets,onBack,notify}){
+function TkDetail({ticket:tk,statuses,teams,severities:svs,modules,workflows:wfs,config:cfg,holidaySet:hs,clients,onUpdate,onDelete,allTickets,onBack,notify}){
   const[showSC,setShowSC]=useState(false);const[showEd,setShowEd]=useState(false);const[showDel,setShowDel]=useState(false);const[showClose,setShowClose]=useState(false);const[showEsc,setShowEsc]=useState(false);
   const[now,setNow]=useState(Date.now());
   useEffect(()=>{if(tk.closedAt)return;const iv=setInterval(()=>setNow(Date.now()),15000);return()=>clearInterval(iv);},[tk.closedAt]);
   const sla=useMemo(()=>calcSLA(tk,cfg,hs),[tk,cfg,hs,now]);
-  const sv=svs.find(s=>s.id===tk.severity),tg=(sv?.resolutionHours||0)*60,rm=tg-sla.totalMin,lv=bLvl(sla.totalMin,tg),bb=bBadge(lv);
-  const tm=teams.find(t=>t.id===tk.currentTeam),mod=modules.find(m=>m.id===tk.module),wf=wfs.find(w=>w.id===tk.workflow);
+  const sv=svs.find(s=>s.id===tk.severity),tg=getTgt(tk,svs,clients),rm=tg-sla.totalMin,lv=bLvl(sla.totalMin,tg),bb=bBadge(lv);
+  const tm=teams.find(t=>t.id===tk.currentTeam),mod=modules.find(m=>m.id===tk.module),wf=wfs.find(w=>w.id===tk.workflow),cl=clients?.find(c=>c.id===tk.client);
   const lH=tk.history?.[tk.history.length-1],cSt=statuses.find(s=>s.id===lH?.statusId),pct=tg>0?Math.min((sla.totalMin/tg)*100,100):0;
   const ageDays=Math.floor((new Date()-new Date(tk.createdAt))/864e5);
   const hEscSave=(reason)=>{const n=new Date().toISOString();onUpdate({...tk,isEscalated:!tk.isEscalated,escalationHistory:[...(tk.escalationHistory||[]),{action:tk.isEscalated?"de-escalated":"escalated",timestamp:n,reason:reason||""}]},tk.isEscalated?"Ticket de-escalated":"Ticket escalated");setShowEsc(false);};
@@ -417,7 +425,7 @@ function TkDetail({ticket:tk,statuses,teams,severities:svs,modules,workflows:wfs
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:20}}>
       <Card><div style={{fontSize:11,color:"#64748b",fontWeight:600,marginBottom:6}}>SLA Timer</div><div style={{fontSize:26,fontWeight:800,color:lv==="breached"?"#dc2626":"#0f172a",lineHeight:1,fontVariantNumeric:"tabular-nums"}}>{fDur(sla.totalMin)}</div><div style={{fontSize:12,color:"#64748b",marginTop:5}}>of {fDur(tg)} target</div><div style={{height:5,background:"#e2e8f0",borderRadius:3,marginTop:8,overflow:"hidden"}}><div style={{height:"100%",borderRadius:3,width:`${Math.min(pct,100)}%`,background:BC[lv]}}/></div><div style={{fontSize:11,color:lv==="breached"?"#dc2626":"#64748b",marginTop:5,fontWeight:600}}>{lv==="breached"?`Overdue by ${fDur(Math.abs(rm))}`:`${fDur(rm)} remaining`}</div></Card>
       <Card><div style={{fontSize:11,color:"#64748b",fontWeight:600,marginBottom:6}}>Time by Side</div>{[{l:"SVM",m:sla.svmMin,c:SC.svm},{l:"Engineering",m:sla.engMin,c:SC.engineering},{l:"Client (paused)",m:sla.clientMin,c:SC.client}].map(s=><div key={s.l} style={{display:"flex",alignItems:"center",gap:7,marginBottom:5}}><div style={{width:9,height:9,borderRadius:3,background:s.c}}/><span style={{fontSize:12,flex:1}}>{s.l}</span><span style={{fontSize:12,fontWeight:700,fontVariantNumeric:"tabular-nums"}}>{fDur(s.m)}</span></div>)}</Card>
-      <Card><div style={{fontSize:11,color:"#64748b",fontWeight:600,marginBottom:6}}>Ticket Info</div><div style={{display:"flex",flexDirection:"column",gap:4,fontSize:12}}><div><span style={{color:"#64748b"}}>Status: </span><b>{cSt?.name||"—"}</b> <SBdg side={lH?.side||"svm"}/></div><div><span style={{color:"#64748b"}}>Owner: </span><b>{tk.currentOwner||"—"}</b></div><div><span style={{color:"#64748b"}}>Team: </span><b>{tm?.name||"—"}</b></div><div><span style={{color:"#64748b"}}>Module: </span>{mod?.name||"—"}</div><div><span style={{color:"#64748b"}}>Workflow: </span>{wf?.name||"—"}</div><div><span style={{color:"#64748b"}}>Created: </span>{fDT(tk.createdAt)} <span style={{color:"#94a3b8"}}>({ageDays}d ago)</span></div>{tk.resolvedAt&&<div><span style={{color:"#64748b"}}>Resolved: </span>{fDT(tk.resolvedAt)}</div>}{tk.closedAt&&<div><span style={{color:"#64748b"}}>Closed: </span>{fDT(tk.closedAt)}</div>}</div></Card>
+      <Card><div style={{fontSize:11,color:"#64748b",fontWeight:600,marginBottom:6}}>Ticket Info</div><div style={{display:"flex",flexDirection:"column",gap:4,fontSize:12}}><div><span style={{color:"#64748b"}}>Status: </span><b>{cSt?.name||"—"}</b> <SBdg side={lH?.side||"svm"}/></div><div><span style={{color:"#64748b"}}>Owner: </span><b>{tk.currentOwner||"—"}</b></div><div><span style={{color:"#64748b"}}>Team: </span><b>{tm?.name||"—"}</b></div><div><span style={{color:"#64748b"}}>Module: </span>{mod?.name||"—"}</div><div><span style={{color:"#64748b"}}>Workflow: </span>{wf?.name||"—"}</div><div><span style={{color:"#64748b"}}>Client: </span><b>{cl?.name||"Default"}</b></div><div><span style={{color:"#64748b"}}>Created: </span>{fDT(tk.createdAt)} <span style={{color:"#94a3b8"}}>({ageDays}d ago)</span></div>{tk.resolvedAt&&<div><span style={{color:"#64748b"}}>Resolved: </span>{fDT(tk.resolvedAt)}</div>}{tk.closedAt&&<div><span style={{color:"#64748b"}}>Closed: </span>{fDT(tk.closedAt)}</div>}</div></Card>
     </div>
     {owBD.length>0&&<Card style={{marginBottom:20}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700}}>Time per Owner (SLA counted)</h3>{owBD.map(o=><div key={o.owner} style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}><span style={{minWidth:110,fontSize:12,fontWeight:600}}>{o.owner}</span><div style={{flex:1,height:18,background:"#f1f5f9",borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",borderRadius:4,background:"#4f46e5",width:`${o.pct}%`,display:"flex",alignItems:"center",paddingLeft:6,fontSize:10,color:"#fff",fontWeight:700,minWidth:"fit-content"}}>{fDur(o.mins)} ({o.pct}%)</div></div></div>)}</Card>}
     {tk.escalationHistory?.length>0&&<Card style={{marginBottom:20,borderLeft:"3px solid #f59e0b"}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700,color:"#92400e",display:"flex",alignItems:"center",gap:6}}><Flag size={15}/>Escalation History</h3>{tk.escalationHistory.map((eh,i)=><div key={i} style={{fontSize:12,padding:"6px 0",borderBottom:i<tk.escalationHistory.length-1?"1px solid #fef3c7":"none"}}><b style={{textTransform:"capitalize"}}>{eh.action}</b> at {fDT(eh.timestamp)}{eh.reason&&<div style={{color:"#64748b",marginTop:2,fontStyle:"italic"}}>Reason: {eh.reason}</div>}</div>)}</Card>}
@@ -497,20 +505,20 @@ function SCForm({ticket:tk,statuses,teams,cfg,hs,sla,onSave,onCancel}){
 }
 
 // ─── ESCALATION PANEL ──────────────────────────────────────────
-function EscPanel({tickets,sevs,teams,cfg,hs,onSel}){
+function EscPanel({tickets,sevs,teams,cfg,hs,clients,onSel}){
   return <div>
     <div style={{marginBottom:18}}><h1 style={{fontSize:22,fontWeight:800,margin:0}}>Escalations</h1><p style={{color:"#64748b",fontSize:13,margin:"3px 0 0"}}>{tickets.length} escalated</p></div>
     {tickets.length===0?<Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No escalated tickets. Looking good.</Card>:
     <div style={{display:"flex",flexDirection:"column",gap:8}}>{tickets.map(t=>{const sv=sevs.find(s=>s.id===t.severity),tm=teams.find(x=>x.id===t.currentTeam),lE=t.escalationHistory?.[t.escalationHistory.length-1];
-      return <Card key={t.id} onClick={()=>onSel(t.id)} style={{cursor:"pointer",padding:14,borderLeft:"4px solid #f59e0b"}}><div style={{display:"flex",alignItems:"center",gap:12}}><div style={{minWidth:90}}><div style={{fontWeight:800,fontSize:13}}>{t.ticketNo}</div><Bdg bg={sv?.color+"22"} color={sv?.color}>{sv?.name}</Bdg></div><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{t.title}</div><div style={{fontSize:11,color:"#64748b",marginTop:2}}>Owner: <b>{t.currentOwner}</b> · Team: <b>{tm?.name||"—"}</b>{lE&&<span> · {fDT(lE.timestamp)}</span>}</div></div><TTmr ticket={t} severities={sevs} config={cfg} holidaySet={hs}/><ChevronRight size={16} color="#94a3b8"/></div></Card>;})}</div>}
+      return <Card key={t.id} onClick={()=>onSel(t.id)} style={{cursor:"pointer",padding:14,borderLeft:"4px solid #f59e0b"}}><div style={{display:"flex",alignItems:"center",gap:12}}><div style={{minWidth:90}}><div style={{fontWeight:800,fontSize:13}}>{t.ticketNo}</div><Bdg bg={sv?.color+"22"} color={sv?.color}>{sv?.name}</Bdg></div><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{t.title}</div><div style={{fontSize:11,color:"#64748b",marginTop:2}}>Owner: <b>{t.currentOwner}</b> · Team: <b>{tm?.name||"—"}</b>{lE&&<span> · {fDT(lE.timestamp)}</span>}</div></div><TTmr ticket={t} severities={sevs} config={cfg} holidaySet={hs} clients={clients}/><ChevronRight size={16} color="#94a3b8"/></div></Card>;})}</div>}
   </div>;
 }
 
 // ─── SLA REPORT ────────────────────────────────────────────────
-function Report({tickets,sevs,teams,modules,wfs,cfg,hs,onSel,notify}){
+function Report({tickets,sevs,teams,modules,wfs,cfg,hs,clients,onSel,notify}){
   const[fS,setFS]=useState("");const[fB,setFB]=useState("");const[dF,setDF]=useState("");const[dT,setDT]=useState("");
   const[search,setSearch]=useState("");const[pg,setPg]=useState(1);const[sort,setSort]=useState({key:"closed",dir:"desc"});
-  const enr=useMemo(()=>tickets.map(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg,ov=br?sla.totalMin-tg:0,lv=bLvl(sla.totalMin,tg);const mO=Object.entries(sla.perOwner).sort((a,b)=>b[1]-a[1])[0];const mS=Object.entries(sla.perSide).filter(([s])=>s!=="client").sort((a,b)=>b[1]-a[1])[0];return{...t,sla,sv,tg,br,ov,lv,mO,mS};}),[tickets,sevs,cfg,hs]);
+  const enr=useMemo(()=>tickets.map(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=getTgt(t,sevs,clients),br=sla.totalMin>tg,ov=br?sla.totalMin-tg:0,lv=bLvl(sla.totalMin,tg);const mO=Object.entries(sla.perOwner).sort((a,b)=>b[1]-a[1])[0];const mS=Object.entries(sla.perSide).filter(([s])=>s!=="client").sort((a,b)=>b[1]-a[1])[0];return{...t,sla,sv,tg,br,ov,lv,mO,mS};}),[tickets,sevs,cfg,hs]);
   const filt=useMemo(()=>enr.filter(t=>{if(search&&!t.ticketNo.toLowerCase().includes(search.toLowerCase())&&!t.title.toLowerCase().includes(search.toLowerCase()))return false;if(fS&&t.severity!==fS)return false;if(fB==="breached"&&!t.br)return false;if(fB==="met"&&t.br)return false;if(dF&&t.closedAt<dF)return false;if(dT&&t.closedAt>dT+"T23:59:59")return false;return true;}),[enr,fS,fB,dF,dT,search]);
   const srt=useMemo(()=>[...filt].sort((a,b)=>{const d=sort.dir==="asc"?1:-1;if(sort.key==="ticket")return a.ticketNo.localeCompare(b.ticketNo)*d;if(sort.key==="severity")return((a.sv?.resolutionHours||999)-(b.sv?.resolutionHours||999))*d;if(sort.key==="elapsed")return(a.sla.totalMin-b.sla.totalMin)*d;if(sort.key==="target")return(a.tg-b.tg)*d;if(sort.key==="over")return(a.ov-b.ov)*d;if(sort.key==="closed")return((new Date(a.closedAt||0))-(new Date(b.closedAt||0)))*d;if(sort.key==="owner")return(a.currentOwner||"").localeCompare(b.currentOwner||"")*d;return 0;}),[filt,sort]);
   const pgd=srt.slice((pg-1)*PGS,pg*PGS);useEffect(()=>setPg(1),[search,fS,fB,dF,dT,sort]);const bC=filt.filter(t=>t.br).length;
@@ -548,22 +556,22 @@ function Report({tickets,sevs,teams,modules,wfs,cfg,hs,onSel,notify}){
 }
 
 // ─── ANALYTICS ─────────────────────────────────────────────────
-function Analytics({tickets,active,closed,sevs,teams,modules,cfg,hs,sub,setSub}){
+function Analytics({tickets,active,closed,sevs,teams,modules,cfg,hs,clients,sub,setSub}){
   const tabs=[{id:"owner",label:"Owner Performance",icon:Users},{id:"team",label:"Team Performance",icon:Users},{id:"module",label:"Module Analysis",icon:LayoutDashboard},{id:"trends",label:"Trends",icon:TrendingUp},{id:"side",label:"Side Analysis",icon:BarChart3}];
   const at=sub||"owner";
   return <div>
     <h1 style={{fontSize:22,fontWeight:800,margin:"0 0 16px"}}>Analytics</h1>
     <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>{tabs.map(t=><button key={t.id} onClick={()=>setSub(t.id)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 14px",borderRadius:7,border:"1px solid "+(at===t.id?"#4f46e5":"#e2e8f0"),background:at===t.id?"#4f46e520":"#fff",color:at===t.id?"#4f46e5":"#475569",fontWeight:600,fontSize:12,cursor:"pointer"}}><t.icon size={14}/>{t.label}</button>)}</div>
-    {at==="owner"&&<OwnerA closed={closed} sevs={sevs} cfg={cfg} hs={hs}/>}
-    {at==="team"&&<TeamA closed={closed} teams={teams} sevs={sevs} cfg={cfg} hs={hs}/>}
-    {at==="module"&&<ModA closed={closed} modules={modules} sevs={sevs} cfg={cfg} hs={hs}/>}
-    {at==="trends"&&<TrendA closed={closed} sevs={sevs} cfg={cfg} hs={hs}/>}
-    {at==="side"&&<SideA closed={closed} sevs={sevs} cfg={cfg} hs={hs}/>}
+    {at==="owner"&&<OwnerA closed={closed} sevs={sevs} cfg={cfg} hs={hs} clients={clients}/>}
+    {at==="team"&&<TeamA closed={closed} teams={teams} sevs={sevs} cfg={cfg} hs={hs} clients={clients}/>}
+    {at==="module"&&<ModA closed={closed} modules={modules} sevs={sevs} cfg={cfg} hs={hs} clients={clients}/>}
+    {at==="trends"&&<TrendA closed={closed} sevs={sevs} cfg={cfg} hs={hs} clients={clients}/>}
+    {at==="side"&&<SideA closed={closed} sevs={sevs} cfg={cfg} hs={hs} clients={clients}/>}
   </div>;
 }
 
-function OwnerA({closed,sevs,cfg,hs}){
-  const data=useMemo(()=>{const m={};closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg;const owners=Object.entries(sla.perOwner);const topOwner=owners.length?owners.sort((a,b)=>b[1]-a[1])[0][0]:null;owners.forEach(([o,mn])=>{if(!m[o])m[o]={owner:o,totalMin:0,tickets:0,breached:0};m[o].totalMin+=mn;m[o].tickets++;if(br&&o===topOwner)m[o].breached++;});});return Object.values(m).map(o=>({...o,avgMin:o.tickets?Math.round(o.totalMin/o.tickets):0,bPct:o.tickets?Math.round((o.breached/o.tickets)*100):0})).sort((a,b)=>b.totalMin-a.totalMin);},[closed,sevs,cfg,hs]);
+function OwnerA({closed,sevs,cfg,hs,clients}){
+  const data=useMemo(()=>{const m={};closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=getTgt(t,sevs,clients),br=sla.totalMin>tg;const owners=Object.entries(sla.perOwner);const topOwner=owners.length?owners.sort((a,b)=>b[1]-a[1])[0][0]:null;owners.forEach(([o,mn])=>{if(!m[o])m[o]={owner:o,totalMin:0,tickets:0,breached:0};m[o].totalMin+=mn;m[o].tickets++;if(br&&o===topOwner)m[o].breached++;});});return Object.values(m).map(o=>({...o,avgMin:o.tickets?Math.round(o.totalMin/o.tickets):0,bPct:o.tickets?Math.round((o.breached/o.tickets)*100):0})).sort((a,b)=>b.totalMin-a.totalMin);},[closed,sevs,cfg,hs]);
   if(!data.length)return <Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No data. Close tickets first.</Card>;
   const cd=data.slice(0,12).map(d=>({name:d.owner,total:Math.round(d.totalMin/60),avg:Math.round(d.avgMin/60)}));
   return <div>
@@ -572,8 +580,8 @@ function OwnerA({closed,sevs,cfg,hs}){
   </div>;
 }
 
-function TeamA({closed,teams,sevs,cfg,hs}){
-  const data=useMemo(()=>{const m={};closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg,ti=t.currentTeam||"?",tm=teams.find(x=>x.id===ti);if(!m[ti])m[ti]={team:tm?.name||"Unknown",totalMin:0,tickets:0,breached:0};m[ti].totalMin+=sla.totalMin;m[ti].tickets++;if(br)m[ti].breached++;});return Object.values(m).map(d=>({...d,avgMin:d.tickets?Math.round(d.totalMin/d.tickets):0,comp:d.tickets?Math.round(((d.tickets-d.breached)/d.tickets)*100):100})).sort((a,b)=>b.tickets-a.tickets);},[closed,teams,sevs,cfg,hs]);
+function TeamA({closed,teams,sevs,cfg,hs,clients}){
+  const data=useMemo(()=>{const m={};closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=getTgt(t,sevs,clients),br=sla.totalMin>tg,ti=t.currentTeam||"?",tm=teams.find(x=>x.id===ti);if(!m[ti])m[ti]={team:tm?.name||"Unknown",totalMin:0,tickets:0,breached:0};m[ti].totalMin+=sla.totalMin;m[ti].tickets++;if(br)m[ti].breached++;});return Object.values(m).map(d=>({...d,avgMin:d.tickets?Math.round(d.totalMin/d.tickets):0,comp:d.tickets?Math.round(((d.tickets-d.breached)/d.tickets)*100):100})).sort((a,b)=>b.tickets-a.tickets);},[closed,teams,sevs,cfg,hs]);
   if(!data.length)return <Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No data.</Card>;
   const cd=data.map(d=>({name:d.team,compliance:d.comp}));
   return <div>
@@ -582,15 +590,15 @@ function TeamA({closed,teams,sevs,cfg,hs}){
   </div>;
 }
 
-function ModA({closed,modules,sevs,cfg,hs}){
-  const data=useMemo(()=>{const m={};closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg,mi=t.module||"?",mod=modules.find(x=>x.id===mi);if(!m[mi])m[mi]={module:mod?.name||"Unknown",tickets:0,breached:0,totalMin:0};m[mi].tickets++;m[mi].totalMin+=sla.totalMin;if(br)m[mi].breached++;});return Object.values(m).map(d=>({...d,avgMin:d.tickets?Math.round(d.totalMin/d.tickets):0,bPct:d.tickets?Math.round((d.breached/d.tickets)*100):0})).sort((a,b)=>b.bPct-a.bPct);},[closed,modules,sevs,cfg,hs]);
+function ModA({closed,modules,sevs,cfg,hs,clients}){
+  const data=useMemo(()=>{const m={};closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=getTgt(t,sevs,clients),br=sla.totalMin>tg,mi=t.module||"?",mod=modules.find(x=>x.id===mi);if(!m[mi])m[mi]={module:mod?.name||"Unknown",tickets:0,breached:0,totalMin:0};m[mi].tickets++;m[mi].totalMin+=sla.totalMin;if(br)m[mi].breached++;});return Object.values(m).map(d=>({...d,avgMin:d.tickets?Math.round(d.totalMin/d.tickets):0,bPct:d.tickets?Math.round((d.breached/d.tickets)*100):0})).sort((a,b)=>b.bPct-a.bPct);},[closed,modules,sevs,cfg,hs]);
   if(!data.length)return <Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No data.</Card>;
   return <Card><h3 style={{margin:"0 0 14px",fontSize:14,fontWeight:700}}>Module Breach Analysis</h3><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["Module","Tickets","Breached","Breach %","Avg Resolution"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 12px",background:"#f8fafc",borderBottom:"2px solid #e2e8f0",fontSize:11,fontWeight:700,color:"#475569"}}>{h}</th>)}</tr></thead><tbody>{data.map(d=><tr key={d.module}><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontWeight:600}}>{d.module}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}>{d.tickets}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontWeight:700,color:d.breached?"#dc2626":"#10b981"}}>{d.breached}</td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9"}}><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:80,height:8,background:"#f1f5f9",borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",background:d.bPct>30?"#dc2626":d.bPct>15?"#f59e0b":"#10b981",width:`${d.bPct}%`,borderRadius:4}}/></div><span style={{fontSize:12,fontWeight:600}}>{d.bPct}%</span></div></td><td style={{padding:"8px 12px",borderBottom:"1px solid #f1f5f9",fontVariantNumeric:"tabular-nums"}}>{fDur(d.avgMin)}</td></tr>)}</tbody></table></Card>;
 }
 
-function TrendA({closed,sevs,cfg,hs}){
+function TrendA({closed,sevs,cfg,hs,clients}){
   const[mode,setMode]=useState("weekly");
-  const data=useMemo(()=>{const m={};closed.forEach(t=>{const k=mode==="weekly"?getWk(t.closedAt):getMo(t.closedAt),sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg;if(!m[k])m[k]={period:k,total:0,breached:0,met:0};m[k].total++;if(br)m[k].breached++;else m[k].met++;});return Object.values(m).sort((a,b)=>a.period.localeCompare(b.period)).map(d=>({...d,comp:d.total?Math.round((d.met/d.total)*100):100}));},[closed,sevs,cfg,hs,mode]);
+  const data=useMemo(()=>{const m={};closed.forEach(t=>{const k=mode==="weekly"?getWk(t.closedAt):getMo(t.closedAt),sla=calcSLA(t,cfg,hs),tg=getTgt(t,sevs,clients),br=sla.totalMin>tg;if(!m[k])m[k]={period:k,total:0,breached:0,met:0};m[k].total++;if(br)m[k].breached++;else m[k].met++;});return Object.values(m).sort((a,b)=>a.period.localeCompare(b.period)).map(d=>({...d,comp:d.total?Math.round((d.met/d.total)*100):100}));},[closed,sevs,cfg,hs,mode]);
   if(!data.length)return <Card style={{textAlign:"center",padding:44,color:"#94a3b8"}}>No trend data.</Card>;
   return <div>
     <div style={{display:"flex",gap:8,marginBottom:16}}><Btn small variant={mode==="weekly"?"primary":"secondary"} onClick={()=>setMode("weekly")}>Weekly</Btn><Btn small variant={mode==="monthly"?"primary":"secondary"} onClick={()=>setMode("monthly")}>Monthly</Btn></div>
@@ -599,8 +607,8 @@ function TrendA({closed,sevs,cfg,hs}){
   </div>;
 }
 
-function SideA({closed,sevs,cfg,hs}){
-  const data=useMemo(()=>{let sT=0,eT=0,cT=0,sB=0,eB=0;closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=(sv?.resolutionHours||0)*60,br=sla.totalMin>tg;sT+=sla.svmMin;eT+=sla.engMin;cT+=sla.clientMin;if(br){if(sla.svmMin>=sla.engMin)sB++;else eB++;}});return{sT,eT,cT,sB,eB,total:closed.length};},[closed,sevs,cfg,hs]);
+function SideA({closed,sevs,cfg,hs,clients}){
+  const data=useMemo(()=>{let sT=0,eT=0,cT=0,sB=0,eB=0;closed.forEach(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),tg=getTgt(t,sevs,clients),br=sla.totalMin>tg;sT+=sla.svmMin;eT+=sla.engMin;cT+=sla.clientMin;if(br){if(sla.svmMin>=sla.engMin)sB++;else eB++;}});return{sT,eT,cT,sB,eB,total:closed.length};},[closed,sevs,cfg,hs]);
   const pie=[{name:"SVM",value:Math.round(data.sT/60),color:SC.svm},{name:"Engineering",value:Math.round(data.eT/60),color:SC.engineering},{name:"Client",value:Math.round(data.cT/60),color:SC.client}].filter(x=>x.value>0);
   return <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
     <Card><h3 style={{margin:"0 0 12px",fontSize:14,fontWeight:700}}>Time Distribution (hours)</h3>{pie.length?<ResponsiveContainer width="100%" height={250}><PieChart><Pie data={pie} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({name,value})=>`${name}: ${value}h`}>{pie.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Tooltip/></PieChart></ResponsiveContainer>:<div style={{textAlign:"center",padding:40,color:"#94a3b8"}}>No data</div>}</Card>
@@ -609,8 +617,8 @@ function SideA({closed,sevs,cfg,hs}){
 }
 
 // ─── SETTINGS ──────────────────────────────────────────────────
-function Sett({cfg,saveCfg,holidays,saveHol,statuses,saveSts,teams,saveTms,modules,saveMods,sevs,saveSevs,wfs,saveWfs,allData,onRestore,sub,setSub}){
-  const tabs=[{id:"hours",label:"Business Hours",icon:Clock},{id:"holidays",label:"Holidays",icon:Calendar},{id:"workflows",label:"Workflows",icon:RefreshCw},{id:"statuses",label:"Statuses",icon:BarChart3},{id:"teams",label:"Teams",icon:Users},{id:"modules",label:"Modules",icon:LayoutDashboard},{id:"severity",label:"Severity/SLA",icon:Shield},{id:"backup",label:"Backup & Restore",icon:Database}];
+function Sett({cfg,saveCfg,holidays,saveHol,statuses,saveSts,teams,saveTms,modules,saveMods,sevs,saveSevs,wfs,saveWfs,clients,saveClients,allData,onRestore,sub,setSub,notify}){
+  const tabs=[{id:"hours",label:"Business Hours",icon:Clock},{id:"holidays",label:"Holidays",icon:Calendar},{id:"workflows",label:"Workflows",icon:RefreshCw},{id:"statuses",label:"Statuses",icon:BarChart3},{id:"teams",label:"Teams",icon:Users},{id:"modules",label:"Modules",icon:LayoutDashboard},{id:"clients",label:"Clients & SLA",icon:Shield},{id:"severity",label:"Severity/SLA",icon:Shield},{id:"backup",label:"Backup & Restore",icon:Database}];
   const at=sub||"hours";
   return <div>
     <h1 style={{fontSize:22,fontWeight:800,margin:"0 0 16px"}}>Settings</h1>
@@ -621,8 +629,53 @@ function Sett({cfg,saveCfg,holidays,saveHol,statuses,saveSts,teams,saveTms,modul
     {at==="statuses"&&<StsS statuses={statuses} saveSts={saveSts} wfs={wfs}/>}
     {at==="teams"&&<ListS items={teams} save={saveTms} label="Team"/>}
     {at==="modules"&&<ListS items={modules} save={saveMods} label="Module"/>}
+    {at==="clients"&&<ClientS clients={clients} saveClients={saveClients} sevs={sevs}/>}
     {at==="severity"&&<SevS sevs={sevs} saveSevs={saveSevs}/>}
     {at==="backup"&&<BkpS allData={allData} onRestore={onRestore}/>}
+  </div>;
+}
+
+function ClientS({clients,saveClients,sevs}){
+  const[showAdd,setShowAdd]=useState(false);const[editId,setEditId]=useState(null);
+  const startEdit=c=>{setEditId(c.id);setShowAdd(true);};
+  const saveClient=cl=>{if(editId)saveClients(clients.map(c=>c.id===editId?{...cl,id:editId}:c));else saveClients([...clients,{...cl,id:uid()}]);setShowAdd(false);setEditId(null);};
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <div><h3 style={{margin:0,fontWeight:700,fontSize:15}}>Clients & SLA Targets</h3><p style={{fontSize:12,color:"#64748b",margin:"4px 0 0"}}>Each client can have custom SLA hours per severity. If not set, the default severity target is used.</p></div>
+      <Btn onClick={()=>{setEditId(null);setShowAdd(true);}}><Plus size={13}/>Add Client</Btn>
+    </div>
+    {clients.map(cl=>{const hasOverrides=Object.keys(cl.slaOverrides||{}).length>0;
+      return <Card key={cl.id} style={{marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div><div style={{fontWeight:700,fontSize:14}}>{cl.name}</div>{hasOverrides?<div style={{fontSize:12,color:"#64748b",marginTop:4,display:"flex",gap:8,flexWrap:"wrap"}}>{sevs.map(sv=>{const ov=cl.slaOverrides?.[sv.id];return <span key={sv.id} style={{padding:"2px 8px",borderRadius:4,fontSize:11,fontWeight:600,background:ov!=null?"#fef3c7":"#f1f5f9",color:ov!=null?"#92400e":"#94a3b8"}}>{sv.name}: {ov!=null?ov+"h (custom)":(sv.resolutionHours+"h")}</span>;})}</div>:<div style={{fontSize:12,color:"#94a3b8",marginTop:4}}>Using default SLA targets for all severities</div>}</div>
+          <div style={{display:"flex",gap:5}}><Btn small variant="ghost" onClick={()=>startEdit(cl)}><Edit2 size={11}/>Edit</Btn>{clients.length>1&&<Btn small variant="danger" onClick={()=>saveClients(clients.filter(x=>x.id!==cl.id))}><Trash2 size={11}/></Btn>}</div>
+        </div>
+      </Card>;
+    })}
+    <Modal open={showAdd} onClose={()=>{setShowAdd(false);setEditId(null);}} title={editId?"Edit Client":"Add Client"} wide>
+      <ClientForm initial={editId?clients.find(c=>c.id===editId):null} sevs={sevs} onSave={saveClient} onCancel={()=>{setShowAdd(false);setEditId(null);}}/>
+    </Modal>
+  </div>;
+}
+
+function ClientForm({initial,sevs,onSave,onCancel}){
+  const[name,setName]=useState(initial?.name||"");
+  const[overrides,setOverrides]=useState(initial?.slaOverrides||{});
+  const setOv=(sevId,val)=>setOverrides(p=>{const n={...p};if(val==="")delete n[sevId];else n[sevId]=Number(val);return n;});
+  return <div style={{display:"flex",flexDirection:"column",gap:14}}>
+    <Inp label="Client Name *" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. SWIRE, Maersk"/>
+    <div>
+      <label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:8}}>SLA Overrides (leave blank to use default)</label>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {sevs.map(sv=><div key={sv.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:overrides[sv.id]!=null?"#fef3c7":"#f8fafc",borderRadius:7,border:"1px solid "+(overrides[sv.id]!=null?"#fde68a":"#e2e8f0")}}>
+          <Bdg bg={sv.color+"22"} color={sv.color}>{sv.name}</Bdg>
+          <span style={{fontSize:11,color:"#94a3b8",flex:1}}>Default: {sv.resolutionHours}h</span>
+          <input type="number" placeholder={sv.resolutionHours+"h"} value={overrides[sv.id]??""}  onChange={e=>setOv(sv.id,e.target.value)} style={{width:65,padding:"4px 8px",borderRadius:5,border:"1px solid #e2e8f0",fontSize:13,textAlign:"right"}}/>
+          <span style={{fontSize:11,color:"#64748b"}}>hrs</span>
+        </div>)}
+      </div>
+    </div>
+    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}><Btn variant="secondary" onClick={onCancel}>Cancel</Btn><Btn onClick={()=>onSave({name:name.trim(),slaOverrides:overrides})} disabled={!name.trim()}><Save size={13}/>Save</Btn></div>
   </div>;
 }
 
