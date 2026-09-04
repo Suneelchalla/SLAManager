@@ -294,6 +294,33 @@ function App(){
 }
 
 // ─── DASHBOARD ─────────────────────────────────────────────────
+function OwnerDash({active,sevs,cfg,hs,clients}){
+  const data=useMemo(()=>{const m={};active.forEach(t=>{const ow=t.currentOwner||"Unassigned";if(!m[ow])m[ow]={owner:ow,total:0,safe:0,warning:0,danger:0,breached:0};m[ow].total++;const sla=calcSLA(t,cfg,hs),tg=getTgt(t,sevs,clients),lv=bLvl(sla.totalMin,tg);m[ow][lv]++;});return Object.values(m).sort((a,b)=>(b.breached+b.danger)-(a.breached+a.danger));},[active,sevs,cfg,hs,clients]);
+  if(!data.length)return null;
+  return <Card style={{marginBottom:16}}>
+    <h3 style={{margin:"0 0 12px",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",gap:7}}><Users size={16}/>Owner Workload & Health</h3>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:10}}>
+      {data.map(d=>{const atRisk=d.warning+d.danger+d.breached;const rating=d.total===0?"—":d.breached>0?"Needs Help":atRisk>0?"Watch":"Good";const rColor=d.breached>0?"#dc2626":atRisk>0?"#d97706":"#10b981";
+        return <div key={d.owner} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:d.breached>0?"#fef2f2":atRisk>0?"#fffbeb":"#f0fdf4",borderRadius:8,border:"1px solid "+(d.breached>0?"#fecaca":atRisk>0?"#fde68a":"#bbf7d0")}}>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:13,color:"#0f172a"}}>{d.owner}</div>
+            <div style={{display:"flex",gap:6,marginTop:4}}>
+              {d.safe>0&&<Bdg bg="#dcfce7" color="#166534">{d.safe} on track</Bdg>}
+              {d.warning>0&&<Bdg bg="#fef3c7" color="#92400e">{d.warning} at risk</Bdg>}
+              {d.danger>0&&<Bdg bg="#fee2e2" color="#991b1b">{d.danger} critical</Bdg>}
+              {d.breached>0&&<Bdg bg="#7f1d1d" color="#fff">{d.breached} breached</Bdg>}
+            </div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:18,fontWeight:800,color:"#0f172a"}}>{d.total}</div>
+            <div style={{fontSize:10,fontWeight:700,color:rColor}}>{rating}</div>
+          </div>
+        </div>;
+      })}
+    </div>
+  </Card>;
+}
+
 function Dash({tickets,active,closed,sevs,teams,modules,cfg,hs,clients,onNav,onSel}){
   const[now,setNow]=useState(Date.now());const[dF,setDF]=useState("");const[dT,setDT]=useState("");
   useEffect(()=>{const iv=setInterval(()=>setNow(Date.now()),60000);return()=>clearInterval(iv);},[]);
@@ -320,6 +347,7 @@ function Dash({tickets,active,closed,sevs,teams,modules,cfg,hs,clients,onNav,onS
       <Card><h3 style={{margin:"0 0 14px",fontSize:14,fontWeight:700}}>By Severity</h3><ResponsiveContainer width="100%" height={200}><BarChart data={sevCh}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/><XAxis dataKey="name" fontSize={11}/><YAxis fontSize={11} allowDecimals={false}/><Tooltip/><Bar dataKey="active" fill="#4f46e5" name="Active" radius={[3,3,0,0]}/><Bar dataKey="closed" fill="#10b981" name="Closed" radius={[3,3,0,0]}/></BarChart></ResponsiveContainer></Card>
       <Card><h3 style={{margin:"0 0 14px",fontSize:14,fontWeight:700}}>Active by Side</h3>{sideCh.length?<ResponsiveContainer width="100%" height={200}><PieChart><Pie data={sideCh} cx="50%" cy="50%" outerRadius={75} dataKey="value" label={({name,value})=>`${name}: ${value}`}>{sideCh.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Tooltip/></PieChart></ResponsiveContainer>:<div style={{textAlign:"center",padding:40,color:"#94a3b8"}}>No active tickets</div>}</Card>
     </div>
+    {active.length>0&&<OwnerDash active={active} sevs={sevs} cfg={cfg} hs={hs} clients={clients}/>}
     {brList.length>0&&<Card style={{borderLeft:"4px solid #dc2626",marginBottom:16}}><h3 style={{margin:"0 0 10px",fontSize:14,fontWeight:700,color:"#dc2626",display:"flex",alignItems:"center",gap:7}}><AlertTriangle size={16}/>Breached — Needs Attention</h3><div style={{display:"flex",flexDirection:"column",gap:6}}>{brList.map(t=>{const sla=calcSLA(t,cfg,hs),sv=sevs.find(s=>s.id===t.severity),ov=sla.totalMin-getTgt(t,sevs,clients);return <div key={t.id} onClick={()=>onSel(t.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 11px",background:"#fef2f2",borderRadius:7,cursor:"pointer",fontSize:13}}><b style={{minWidth:90}}>{t.ticketNo}</b><span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</span><Bdg bg={sv?.color+"22"} color={sv?.color}>{sv?.name}</Bdg>{t.isEscalated&&<Bdg bg="#fef3c7" color="#92400e">Esc</Bdg>}<span style={{fontWeight:700,color:"#dc2626",fontSize:12}}>+{fDur(ov)}</span></div>;})}</div></Card>}
   </div>;
 }
