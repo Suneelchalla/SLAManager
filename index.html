@@ -267,6 +267,7 @@ function App(){
   const[wfs,saveWfs,c8]=useStore(SK.workflows,DEF_WF);
   const[clients,saveClients,c9]=useStore(SK.clients,DEF_CLIENTS);
   const rdy=c1&&c2&&c3&&c4&&c5&&c6&&c7&&c8&&c9;
+  useEffect(()=>{if(!rdy||!tickets.length)return;let dirty=false;const fixed=tickets.map(t=>{let changed=false;const newH=t.history?.map(h=>{if(h.statusName==="Closed"&&h.side!=="svm"){changed=true;return{...h,side:"svm"};}return h;})||[];if(changed){t={...t,history:newH};}const lastH=newH[newH.length-1];if(lastH?.statusName==="Closed"&&!t.closedAt){t={...t,closedAt:lastH.timestamp,resolvedAt:t.resolvedAt||lastH.timestamp};changed=true;}if(changed)dirty=true;return t;});if(dirty)saveTix(fixed);},[rdy]);
   const hs=useMemo(()=>new Set(holidays.map(h=>h.date)),[holidays]);
   const active=useMemo(()=>tickets.filter(t=>!t.closedAt),[tickets]);
   const closed=useMemo(()=>tickets.filter(t=>t.closedAt),[tickets]);
